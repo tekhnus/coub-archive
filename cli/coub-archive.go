@@ -28,6 +28,7 @@ type CoubHTML5Link struct {
 type CoubHTML5Resource struct {
 	Higher CoubHTML5Link
 	High CoubHTML5Link
+	Med CoubHTML5Link
 }
 
 type CoubHTML5 struct {
@@ -75,6 +76,9 @@ func getUrl(res CoubHTML5Resource) string {
 	}
 	if res.High.Url != "" {
 		return res.High.Url
+	}
+	if res.Med.Url != "" {
+		return res.Med.Url
 	}
 	return ""
 }
