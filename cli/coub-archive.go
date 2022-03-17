@@ -34,7 +34,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("saving to", absDir)
-	queue := make(chan Task, 1000)
+	queue := make(chan Task, 32)
 	var wg sync.WaitGroup
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
