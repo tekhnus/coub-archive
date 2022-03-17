@@ -17,7 +17,16 @@ import (
 )
 
 func main() {
-	curlfile := os.Args[1]
+	exePath, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	var curlfile string
+	if len(os.Args) > 1 {
+		curlfile = os.Args[1]
+	} else {
+		curlfile = filepath.Join(filepath.Dir(exePath), "coub-curl.txt")
+	}
 	input, err := os.ReadFile(curlfile)
 	if err != nil {
 		panic(err)
@@ -31,10 +40,6 @@ func main() {
 	cookie := matches[1]
 	page := 1
 	dirTag := "coub-archive-" + time.Now().Format("2006-01-02T15_04_05")
-	exePath, err := os.Executable()
-	if err != nil {
-		panic(err)
-	}
 	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
 	absDir, err := filepath.Abs(dirName)
 	if err != nil {
