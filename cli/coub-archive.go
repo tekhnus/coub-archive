@@ -29,7 +29,11 @@ func main() {
 	cookie := matches[1]
 	page := 1
 	dirName := "coub-archive-" + time.Now().Format(time.RFC3339)
-	fmt.Println("saving to", dirName)
+	absDir, err := filepath.Abs(dirName)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("saving to", absDir)
 	queue := make(chan Task, 1000)
 	var wg sync.WaitGroup
 	for n := 0; n < 4; n++ {
