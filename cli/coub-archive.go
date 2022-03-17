@@ -15,108 +15,6 @@ import (
 	"errors"
 )
 
-type Timeline struct {
-	Page int
-	Total_Pages int
-	Coubs []Coub
-}
-
-type CoubHTML5Link struct {
-	Url string
-}
-
-type CoubHTML5Resource struct {
-	Higher CoubHTML5Link
-	High CoubHTML5Link
-	Med CoubHTML5Link
-}
-
-type CoubHTML5 struct {
-	Video CoubHTML5Resource
-	Audio *CoubHTML5Resource
-}
-
-type CoubVersions struct {
-	Html5 CoubHTML5
-}
-
-type Coub struct {
-	Id int
-	File_Versions CoubVersions
-}
-
-type Task struct {
-	C Coub
-	DirName string
-}
-
-func queryAndSaveToFile(url string, dirName string, fname string) {
-	resp, err := http.Get(url)
-	if err != nil {
-		panic(err)
-	}
-	parts := strings.Split(url, ".")
-	ext := "." + parts[len(parts) - 1]
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		panic(resp)
-	}
-	err = os.MkdirAll(dirName, 0775)
-	if err != nil {
-		panic(err)
-	}
-	f, err := os.Create(filepath.Join(dirName, fname + ext))
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	f.ReadFrom(resp.Body)
-}
-
-func getUrl(res CoubHTML5Resource) string {
-	if res.Higher.Url != "" {
-		return res.Higher.Url
-	}
-	if res.High.Url != "" {
-		return res.High.Url
-	}
-	if res.Med.Url != "" {
-		return res.Med.Url
-	}
-	return ""
-}
-
-func queryAndSaveResourceToFile(res CoubHTML5Resource, dirName string, fname string) error {
-	u := getUrl(res)
-	if u == "" {
-		return errors.New("resource not found")
-	}
-	queryAndSaveToFile(u, dirName, fname)
-	return nil
-}
-
-func download(c Coub, dirName string) {
-	fmt.Println("saving", c.Id)
-	err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, dirName, "vi")
-	if err != nil {
-		panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
-	}
-	if c.File_Versions.Html5.Audio != nil {
-		err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio, dirName, "au")
-		if err != nil {
-			panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
-		}
-	}
-	fmt.Println("done saving", c.Id)
-}
-
-func downloader(ch chan Task, wg *sync.WaitGroup) {
-	defer wg.Done()
-	for t := range ch {
-		download(t.C, t.DirName)
-	}
-}
-
 func main() {
 	input, err := io.ReadAll(os.Stdin)
 	if err != nil {
@@ -165,4 +63,109 @@ func main() {
 	}
 	close(queue)
 	wg.Wait()
+}
+
+func downloader(ch chan Task, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for t := range ch {
+		download(t.C, t.DirName)
+	}
+}
+
+func download(c Coub, dirName string) {
+	fmt.Println("saving", c.Id)
+	err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, dirName, "vi")
+	if err != nil {
+		panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
+	}
+	if c.File_Versions.Html5.Audio != nil {
+		err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio, dirName, "au")
+		if err != nil {
+			panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
+		}
+	}
+	fmt.Println("done saving", c.Id)
+}
+
+func queryAndSaveResourceToFile(res CoubHTML5Resource, dirName string, fname string) error {
+	u := getUrl(res)
+	if u == "" {
+		return errors.New("resource not found")
+	}
+	queryAndSaveToFile(u, dirName, fname)
+	return nil
+}
+
+func queryAndSaveToFile(url string, dirName string, fname string) {
+	resp, err := http.Get(url)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		panic(resp)
+	}
+
+	err = os.MkdirAll(dirName, 0775)
+	if err != nil {
+		panic(err)
+	}
+
+	parts := strings.Split(url, ".")
+	ext := "." + parts[len(parts) - 1]
+	f, err := os.Create(filepath.Join(dirName, fname + ext))
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	f.ReadFrom(resp.Body)
+}
+
+func getUrl(res CoubHTML5Resource) string {
+	if res.Higher.Url != "" {
+		return res.Higher.Url
+	}
+	if res.High.Url != "" {
+		return res.High.Url
+	}
+	if res.Med.Url != "" {
+		return res.Med.Url
+	}
+	return ""
+}
+
+type Timeline struct {
+	Page int
+	Total_Pages int
+	Coubs []Coub
+}
+
+type Coub struct {
+	Id int
+	File_Versions CoubVersions
+}
+
+type CoubVersions struct {
+	Html5 CoubHTML5
+}
+
+type CoubHTML5 struct {
+	Video CoubHTML5Resource
+	Audio *CoubHTML5Resource
+}
+
+type CoubHTML5Resource struct {
+	Higher CoubHTML5Link
+	High CoubHTML5Link
+	Med CoubHTML5Link
+}
+
+type CoubHTML5Link struct {
+	Url string
+}
+
+type Task struct {
+	C Coub
+	DirName string
 }
