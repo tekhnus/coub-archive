@@ -29,7 +29,12 @@ func main() {
 	}
 	cookie := matches[1]
 	page := 1
-	dirName := "coub-archive-" + time.Now().Format("2006-01-02T15_04_05")
+	dirTag := "coub-archive-" + time.Now().Format("2006-01-02T15_04_05")
+	exePath, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
 	absDir, err := filepath.Abs(dirName)
 	if err != nil {
 		panic(err)
