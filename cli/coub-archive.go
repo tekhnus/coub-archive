@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync"
 	"errors"
+	"github.com/schollz/progressbar/v3"
 )
 
 func main() {
@@ -40,11 +41,12 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("saving to", absDir)
+	bar := progressbar.Default(-1)
 	queue := make(chan Task, 32)
 	var wg sync.WaitGroup
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
-		go downloader(queue, &wg)
+		go downloader(queue, &wg, bar)
 	}
 	for {
 		req, err := http.NewRequest("GET", fmt.Sprintf("https://coub.com/api/v2/timeline/likes?page=%d&per_page=25", page), nil)
@@ -84,15 +86,15 @@ func main() {
 	wg.Wait()
 }
 
-func downloader(ch chan Task, wg *sync.WaitGroup) {
+func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar) {
 	defer wg.Done()
 	for t := range ch {
 		download(t.C, t.DirName)
+		bar.Add(1)
 	}
 }
 
 func download(c Coub, dirName string) {
-	fmt.Println("saving", c.Id)
 	err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, dirName, "vi")
 	if err != nil {
 		panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
@@ -103,7 +105,6 @@ func download(c Coub, dirName string) {
 			panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
 		}
 	}
-	fmt.Println("done saving", c.Id)
 }
 
 func queryAndSaveResourceToFile(res CoubHTML5Resource, dirName string, fname string) error {
