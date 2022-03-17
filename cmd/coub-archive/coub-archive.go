@@ -14,12 +14,20 @@ import (
 	"sync"
 	"errors"
 	"github.com/schollz/progressbar/v3"
+	"log"
 )
 
 func main() {
+	err := doMain()
+	if err != nil {
+		log.Fatal("%s", err)
+	}
+}
+
+func doMain() error {
 	exePath, err := os.Executable()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	var curlfile string
 	if len(os.Args) > 1 {
@@ -29,13 +37,13 @@ func main() {
 	}
 	input, err := os.ReadFile(curlfile)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	inputS := (string)(input)
 	r := regexp.MustCompile(`-H 'Cookie: (.*)'`)
 	matches := r.FindStringSubmatch(inputS)
 	if len(matches) <=1 {
-		panic("wrong curl string")
+		return fmt.Errorf("something is wrong with coub-curl.txt")
 	}
 	cookie := matches[1]
 	page := 1
@@ -43,7 +51,7 @@ func main() {
 	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
 	absDir, err := filepath.Abs(dirName)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	fmt.Println("saving to", absDir)
 	cnt := 0
@@ -57,26 +65,26 @@ func main() {
 	for {
 		req, err := http.NewRequest("GET", fmt.Sprintf("https://coub.com/api/v2/timeline/likes?page=%d&per_page=25", page), nil)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		req.Header.Add("Cookie", cookie)
 		var client http.Client
 		resp, err := client.Do(req)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			panic(resp)
+			return fmt.Errorf("coub.com response is not good: %s", resp)
 		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		var firstPage Timeline
 		err = json.Unmarshal(body, &firstPage)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		cnt += len(firstPage.Coubs)
 		bar.ChangeMax(cnt)
@@ -92,6 +100,7 @@ func main() {
 	}
 	close(queue)
 	wg.Wait()
+	return nil
 }
 
 func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar) {
