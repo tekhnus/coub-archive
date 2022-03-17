@@ -48,13 +48,22 @@ func main() {
 		req.Header.Add("Cookie", cookie)
 		var client http.Client
 		resp, err := client.Do(req)
+		if err != nil {
+			panic(err)
+		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			panic(resp)
 		}
 		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
 		var firstPage Timeline
 		err = json.Unmarshal(body, &firstPage)
+		if err != nil {
+			panic(err)
+		}
 		for _, cb := range firstPage.Coubs {
 			coubDir := filepath.Join(dirName, strconv.Itoa(cb.Id))
 			queue <- Task{cb, coubDir}
