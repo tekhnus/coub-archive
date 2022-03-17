@@ -58,6 +58,9 @@ func queryAndSaveToFile(url string, dirName string, fname string) {
 	parts := strings.Split(url, ".")
 	ext := "." + parts[len(parts) - 1]
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		panic(resp)
+	}
 	err = os.MkdirAll(dirName, 0775)
 	if err != nil {
 		panic(err)
@@ -144,6 +147,9 @@ func main() {
 		var client http.Client
 		resp, err := client.Do(req)
 		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			panic(resp)
+		}
 		body, err := io.ReadAll(resp.Body)
 		var firstPage Timeline
 		err = json.Unmarshal(body, &firstPage)
