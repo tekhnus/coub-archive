@@ -16,7 +16,8 @@ import (
 )
 
 func main() {
-	input, err := io.ReadAll(os.Stdin)
+	curlfile := os.Args[1]
+	input, err := os.ReadFile(curlfile)
 	if err != nil {
 		panic(err)
 	}
