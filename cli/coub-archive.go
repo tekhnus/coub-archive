@@ -41,8 +41,9 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("saving to", absDir)
-	bar := progressbar.Default(-1)
-	queue := make(chan Task, 32)
+	cnt := 0
+	bar := progressbar.Default(1)
+	queue := make(chan Task, 64000)
 	var wg sync.WaitGroup
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
@@ -72,6 +73,8 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		cnt += len(firstPage.Coubs)
+		bar.ChangeMax(cnt)
 		for _, cb := range firstPage.Coubs {
 			coubDir := filepath.Join(dirName, strconv.Itoa(cb.Id))
 			queue <- Task{cb, coubDir}
