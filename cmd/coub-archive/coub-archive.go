@@ -35,17 +35,10 @@ func doMain() error {
 	} else {
 		curlfile = filepath.Join(filepath.Dir(exePath), "coub-curl.txt")
 	}
-	input, err := os.ReadFile(curlfile)
+	cookie, err := readCookies(curlfile)
 	if err != nil {
 		return err
 	}
-	inputS := (string)(input)
-	r := regexp.MustCompile(`-H 'Cookie: (.*)'`)
-	matches := r.FindStringSubmatch(inputS)
-	if len(matches) <=1 {
-		return fmt.Errorf("something is wrong with coub-curl.txt")
-	}
-	cookie := matches[1]
 	page := 1
 	dirTag := "coub-archive-" + time.Now().Format("2006-01-02T15_04_05")
 	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
@@ -101,6 +94,21 @@ func doMain() error {
 	close(queue)
 	wg.Wait()
 	return nil
+}
+
+func readCookies(curlfile string) (string, error) {
+	input, err := os.ReadFile(curlfile)
+	if err != nil {
+		return "", err
+	}
+	inputS := (string)(input)
+	r := regexp.MustCompile(`-H 'Cookie: (.*)'`)
+	matches := r.FindStringSubmatch(inputS)
+	if len(matches) <=1 {
+		return "", fmt.Errorf("something is wrong with cookie file")
+	}
+	cookie := matches[1]
+	return cookie, nil
 }
 
 func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar) {
