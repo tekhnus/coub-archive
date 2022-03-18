@@ -56,21 +56,7 @@ func doMain() error {
 		go downloader(queue, &wg, bar)
 	}
 	for {
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://coub.com/api/v2/timeline/likes?page=%d&per_page=25", page), nil)
-		if err != nil {
-			return err
-		}
-		req.Header.Add("Cookie", cookie)
-		var client http.Client
-		resp, err := client.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("coub.com response is not good: %s", resp)
-		}
-		body, err := io.ReadAll(resp.Body)
+		body, err := performRequest(fmt.Sprintf("/timeline/likes?page=%d&per_page=25", page), cookie)
 		if err != nil {
 			return err
 		}
@@ -117,6 +103,24 @@ func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar) 
 		download(t.C, t.DirName)
 		bar.Add(1)
 	}
+}
+
+func performRequest(query string, cookies string) ([]byte, error) {
+	req, err := http.NewRequest("GET", "https://coub.com/api/v2" + query, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Cookie", cookies)
+	var client http.Client
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("coub.com response is not good: %s", resp)
+	}
+	return io.ReadAll(resp.Body)
 }
 
 func download(c Coub, dirName string) {
