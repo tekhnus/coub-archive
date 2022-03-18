@@ -25,6 +25,10 @@ func main() {
 }
 
 func doMain() error {
+	var wg sync.WaitGroup
+	errchan := make(chan error)
+	wg.Add(1)
+	go reportErrors(errchan, &wg)
 	exePath, err := os.Executable()
 	if err != nil {
 		return err
@@ -39,7 +43,6 @@ func doMain() error {
 	if err != nil {
 		return err
 	}
-	page := 1
 	dirTag := "coub-archive-" + time.Now().Format("2006-01-02T15_04_05")
 	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
 	absDir, err := filepath.Abs(dirName)
@@ -50,36 +53,38 @@ func doMain() error {
 	cnt := 0
 	bar := progressbar.Default(1)
 	queue := make(chan Task, 64000)
-	var wg sync.WaitGroup
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
 		go downloader(queue, &wg, bar)
 	}
-	for {
-		body, err := performRequest(fmt.Sprintf("/timeline/likes?page=%d&per_page=25", page), cookie)
-		if err != nil {
-			return err
-		}
-		var firstPage Timeline
-		err = json.Unmarshal(body, &firstPage)
-		if err != nil {
-			return err
-		}
+	reqresp := make(chan TimelineRequestResponse)
+	go paginateThroughTimeline(reqresp, errchan, "/timeline/likes?", cookie)
+
+	for rr := range reqresp {
+		firstPage := rr.Response
 		cnt += len(firstPage.Coubs)
 		bar.ChangeMax(cnt)
-		for _, cb := range firstPage.Coubs {
+		for _, rawcb := range firstPage.Coubs {
+			var cb Coub
+			err := json.Unmarshal(rawcb, &cb)
+			if err != nil {
+				return err
+			}
 			coubDir := filepath.Join(dirName, strconv.Itoa(cb.Id))
 			queue <- Task{cb, coubDir}
 		}
-		totalPages := firstPage.Total_Pages
-		if page == totalPages {
-			break
-		}
-		page += 1
 	}
 	close(queue)
+	close(errchan)
 	wg.Wait()
 	return nil
+}
+
+func reportErrors(errchan chan error, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for err := range errchan {
+		log.Println(err)
+	}
 }
 
 func readCookies(curlfile string) (string, error) {
@@ -102,6 +107,31 @@ func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar) 
 	for t := range ch {
 		download(t.C, t.DirName)
 		bar.Add(1)
+	}
+}
+
+func paginateThroughTimeline(outp chan TimelineRequestResponse, errchan chan error, query string, cookies string) {
+	defer close(outp)
+	page := 1
+	for {
+		q := fmt.Sprintf("%spage=%d&per_page=25", query, page)
+		body, err := performRequest(q, cookies)
+		if err != nil {
+			errchan <- err
+			return
+		}
+		var firstPage TimelineResponse
+		err = json.Unmarshal(body, &firstPage)
+		if err != nil {
+			errchan <- err
+			return
+		}
+		outp <- TimelineRequestResponse{q, firstPage}
+		totalPages := firstPage.Total_Pages
+		if page == totalPages {
+			break
+		}
+		page += 1
 	}
 }
 
@@ -217,4 +247,15 @@ type CoubHTML5Link struct {
 type Task struct {
 	C Coub
 	DirName string
+}
+
+type TimelineRequestResponse struct {
+	Request string
+	Response TimelineResponse
+}
+
+type TimelineResponse struct {
+	Page int
+	Total_Pages int
+	Coubs []json.RawMessage
 }
