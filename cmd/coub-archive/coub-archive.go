@@ -20,7 +20,7 @@ import (
 func main() {
 	err := doMain()
 	if err != nil {
-		log.Fatal("%s", err)
+		log.Fatal(err)
 	}
 }
 
