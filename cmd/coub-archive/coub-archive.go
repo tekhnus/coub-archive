@@ -7,9 +7,9 @@ import (
 	"os"
 	"net/http"
 	"encoding/json"
-	"strings"
 	"strconv"
 	"time"
+	"path"
 	"path/filepath"
 	"sync"
 	"errors"
@@ -55,7 +55,9 @@ func doMain() error {
 	queue := make(chan Task, 64000)
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
-		go downloader(queue, &wg, bar)
+		go downloader(queue, &wg, bar, func(item CoubMediaRequestResponse) {
+			saveToFile(dirName, item)
+		})
 	}
 	reqresp := make(chan TimelineRequestResponse)
 	go paginateThroughTimeline(reqresp, errchan, "/timeline/likes?", cookie)
@@ -129,10 +131,11 @@ func saveCoubMetadata(dirName string, rawcb json.RawMessage) error {
 	return nil
 }
 
-func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar) {
+func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar, callback func(CoubMediaRequestResponse)) {
 	defer wg.Done()
 	for t := range ch {
-		download(t.C, t.DirName)
+		res := download(t.C, t.DirName)
+		callback(res)
 		bar.Add(1)
 	}
 }
@@ -180,59 +183,78 @@ func performRequest(query string, cookies string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func download(c Coub, dirName string) {
-	err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, filepath.Join(dirName, "best-video"), "video")
+func download(c Coub, dirName string) CoubMediaRequestResponse {
+	videoUrl, videoB, err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, filepath.Join(dirName, "best-video"), "video")
 	if err != nil {
 		panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
 	}
+	audioUrl := ""
+	var audioB []byte
 	if c.File_Versions.Html5.Audio != nil {
-		err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio, filepath.Join(dirName, "best-audio"), "audio")
+		audioUrl, audioB, err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio, filepath.Join(dirName, "best-audio"), "audio")
 		if err != nil {
 			panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
 		}
 	}
+	return CoubMediaRequestResponse{c.Permalink, videoUrl, videoB, audioUrl, audioB}
 }
 
-func queryAndSaveResourceToFile(res CoubHTML5Resource, dirName string, fname string) error {
+func queryAndSaveResourceToFile(res CoubHTML5Resource, dirName string, fname string) (string, []byte, error) {
 	u := getUrl(res)
 	if u == "" {
-		return errors.New("resource not found")
+		return "", nil, errors.New("resource not found")
 	}
-	queryAndSaveToFile(u, dirName, fname)
-	return nil
+	b, err := queryAndSaveToFile(u, dirName, fname)
+	return u, b, err
 }
 
-func queryAndSaveToFile(url string, dirName string, fname string) {
+func queryAndSaveToFile(url string, dirName string, fname string) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		panic(resp)
+		return nil, err
 	}
+	return io.ReadAll(resp.Body)
+}
 
-	err = os.MkdirAll(dirName, 0775)
+func saveToFile(rootdir string, data CoubMediaRequestResponse) error {
+	dirName := filepath.Join(rootdir, "media", data.CoubPermalink)
+
+	err := saveBytesToFile(filepath.Join(dirName, "best-video", "video" + path.Ext(data.VideoRequest)), data.BestVideo)
 	if err != nil {
-		panic(err)
+		return err
 	}
-
-	rf, err := os.Create(filepath.Join(dirName, "request.txt"))
+	err = saveBytesToFile(filepath.Join(dirName, "best-video", "request.txt"), ([]byte)(data.VideoRequest))
 	if err != nil {
-		panic(err)
+		return err
 	}
-	defer rf.Close()
-	rf.Write(([]byte)(url))
-
-	parts := strings.Split(url, ".")
-	ext := "." + parts[len(parts) - 1]
-	f, err := os.Create(filepath.Join(dirName, fname + ext))
+	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio" + path.Ext(data.AudioRequest)), data.BestAudio)
 	if err != nil {
-		panic(err)
+		return err
+	}
+	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "request.txt"), ([]byte)(data.AudioRequest))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func saveBytesToFile(path string, b []byte) error {
+	dir := filepath.Dir(path)
+	err := os.MkdirAll(dir, 0775)
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
 	}
 	defer f.Close()
-
-	f.ReadFrom(resp.Body)
+	f.Write(b)
+	return nil
 }
 
 func getUrl(res CoubHTML5Resource) string {
@@ -293,4 +315,12 @@ type TimelineResponse struct {
 	Page int
 	Total_Pages int
 	Coubs []json.RawMessage
+}
+
+type CoubMediaRequestResponse struct {
+	CoubPermalink string
+	VideoRequest string
+	BestVideo []byte
+	AudioRequest string
+	BestAudio []byte
 }
