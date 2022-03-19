@@ -18,18 +18,30 @@ import (
 )
 
 func main() {
-	err := doTimelineLikes()
+	updProgress := terminalProgressBar()
+	err := doTimelineLikes(updProgress)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func doTimelineLikes() error {
+func terminalProgressBar() func(int, int) {
+	bar := progressbar.Default(1)
+	total := 1
+
+	return func (deltaDone int, deltaTotal int) {
+		total += deltaTotal
+		bar.Add(deltaDone)
+		bar.ChangeMax(total)
+	}
+}
+
+func doTimelineLikes(updProgress func(int, int)) error {
 	headers, err := getAuthHeaders()
 	if err != nil {
 		return err
 	}
-	return doTimeline("timeline-likes", "/timeline/likes", []string{}, headers)
+	return doTimeline("timeline-likes", "/timeline/likes", []string{}, headers, updProgress)
 }
 
 func getAuthHeaders() (map[string]string, error) {
@@ -45,7 +57,7 @@ func getAuthHeaders() (map[string]string, error) {
 	return map[string]string{"Cookie": cookie}, nil
 }
 
-func doTimeline(topic string, apiPath string, params []string, headers map[string]string) error {
+func doTimeline(topic string, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
 	var wg sync.WaitGroup
 	errchan := make(chan error)
 	wg.Add(1)
@@ -62,14 +74,13 @@ func doTimeline(topic string, apiPath string, params []string, headers map[strin
 		return err
 	}
 	fmt.Println("saving to", absDir)
-	cnt := 0
-	bar := progressbar.Default(1)
+
 	queue := make(chan Coub, 64000)
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
 		go mediaDownloader(queue, &wg, func(item CoubMediaRequestResponse) {
 			saveMediaToFile(dirName, item)
-			bar.Add(1)
+			updProgress(+1, +0)
 		})
 	}
 	reqresp := make(chan TimelineRequestResponse)
@@ -77,8 +88,7 @@ func doTimeline(topic string, apiPath string, params []string, headers map[strin
 	go paginateThroughTimeline(reqresp, errchan, apiPath, params, headers)
 
 	for rr := range reqresp {
-		cnt += len(rr.Response.Coubs)
-		bar.ChangeMax(cnt)
+		updProgress(+0, +len(rr.Response.Coubs))
 		err := saveMetadataToFile(dirName, topic, queryId, rr)
 		if err != nil {
 			return err
