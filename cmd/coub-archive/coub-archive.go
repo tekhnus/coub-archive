@@ -77,8 +77,7 @@ func doMain() error {
 			if err != nil {
 				return err
 			}
-			coubDir := filepath.Join(dirName, "media", cb.Permalink)
-			queue <- Task{cb, coubDir}
+			queue <- Task{cb}
 		}
 	}
 	close(queue)
@@ -132,7 +131,7 @@ func readCookies(curlfile string) (string, error) {
 func downloader(ch chan Task, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
 	defer wg.Done()
 	for t := range ch {
-		res := download(t.C, t.DirName)
+		res := download(t.C)
 		callback(res)
 	}
 }
@@ -180,15 +179,15 @@ func performRequest(query string, cookies string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func download(c Coub, dirName string) CoubMediaRequestResponse {
-	videoUrl, videoB, err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, filepath.Join(dirName, "best-video"), "video")
+func download(c Coub) CoubMediaRequestResponse {
+	videoUrl, videoB, err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video)
 	if err != nil {
 		panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
 	}
 	audioUrl := ""
 	var audioB []byte
 	if c.File_Versions.Html5.Audio != nil {
-		audioUrl, audioB, err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio, filepath.Join(dirName, "best-audio"), "audio")
+		audioUrl, audioB, err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio)
 		if err != nil {
 			panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
 		}
@@ -196,16 +195,16 @@ func download(c Coub, dirName string) CoubMediaRequestResponse {
 	return CoubMediaRequestResponse{c.Permalink, videoUrl, videoB, audioUrl, audioB}
 }
 
-func queryAndSaveResourceToFile(res CoubHTML5Resource, dirName string, fname string) (string, []byte, error) {
+func queryAndSaveResourceToFile(res CoubHTML5Resource) (string, []byte, error) {
 	u := getUrl(res)
 	if u == "" {
 		return "", nil, errors.New("resource not found")
 	}
-	b, err := queryAndSaveToFile(u, dirName, fname)
+	b, err := queryAndSaveToFile(u)
 	return u, b, err
 }
 
-func queryAndSaveToFile(url string, dirName string, fname string) ([]byte, error) {
+func queryAndSaveToFile(url string) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -300,7 +299,6 @@ type CoubHTML5Link struct {
 
 type Task struct {
 	C Coub
-	DirName string
 }
 
 type TimelineRequestResponse struct {
