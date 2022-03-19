@@ -44,8 +44,9 @@ func doMain() error {
 	if err != nil {
 		return err
 	}
-	dirTag := "coub-archive-" + time.Now().Format("2006-01-02T15_04_05")
+	dirTag := "coubs"
 	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
+	queryId := time.Now().Format("2006-01-02T15_04_05")
 	absDir, err := filepath.Abs(dirName)
 	if err != nil {
 		return err
@@ -68,7 +69,7 @@ func doMain() error {
 	for rr := range reqresp {
 		cnt += len(rr.Response.Coubs)
 		bar.ChangeMax(cnt)
-		err := saveMetadataToFile(dirName, "timeline-likes", "id", rr)
+		err := saveMetadataToFile(dirName, "timeline-likes", queryId, rr)
 		if err != nil {
 			return err
 		}
