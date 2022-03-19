@@ -93,6 +93,8 @@ func doMain() error {
 }
 
 func saveMetadataToFile(rootdir string, topic string, queryId string, data TimelineRequestResponse) error {
+	pageRoot := filepath.Join(rootdir, topic, queryId, fmt.Sprintf("%03d", data.Response.Page))
+	saveBytesToFile(filepath.Join(pageRoot, "request.txt"), ([]byte)(data.Request))
 	page := data.Response
 	for _, rawcb := range page.Coubs {
 		var cb Coub
@@ -104,7 +106,7 @@ func saveMetadataToFile(rootdir string, topic string, queryId string, data Timel
 		if err != nil {
 			return err
 		}
-		err = saveBytesToFile(filepath.Join(rootdir, topic, queryId, fmt.Sprintf("%03d", data.Response.Page), cb.Permalink, "metadata.txt"), b)
+		err = saveBytesToFile(filepath.Join(pageRoot, cb.Permalink, "metadata.txt"), b)
 		if err != nil {
 			return err
 		}
