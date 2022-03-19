@@ -173,7 +173,8 @@ func readCookies(curlfile string) (string, error) {
 func mediaDownloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
 	defer wg.Done()
 	for coub := range ch {
-		res := downloadMedia(coub)
+		res, err := downloadMedia(coub)
+		terminateIfError(err)
 		callback(res)
 	}
 }
@@ -225,20 +226,20 @@ func performRequest(query string, headers map[string]string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func downloadMedia(c Coub) CoubMediaRequestResponse {
+func downloadMedia(c Coub) (CoubMediaRequestResponse, error) {
 	videoUrl, videoB, err := downloadResource(c.File_Versions.Html5.Video)
 	if err != nil {
-		panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
+		return CoubMediaRequestResponse{}, fmt.Errorf("while processing coub %n: %w", c.Permalink, err)
 	}
 	audioUrl := ""
 	var audioB []byte
 	if c.File_Versions.Html5.Audio != nil {
 		audioUrl, audioB, err = downloadResource(*c.File_Versions.Html5.Audio)
 		if err != nil {
-			panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
+			return CoubMediaRequestResponse{}, fmt.Errorf("while processing coub %n: %w", c.Permalink, err)
 		}
 	}
-	return CoubMediaRequestResponse{c.Permalink, videoUrl, videoB, audioUrl, audioB}
+	return CoubMediaRequestResponse{c.Permalink, videoUrl, videoB, audioUrl, audioB}, nil
 }
 
 func downloadResource(res CoubHTML5Resource) (string, []byte, error) {
