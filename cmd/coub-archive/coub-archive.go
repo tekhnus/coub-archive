@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/schollz/progressbar/v3"
+	shell "github.com/ipfs/go-ipfs-api"
 	"io"
 	"log"
 	"net/http"
@@ -30,8 +32,10 @@ func main() {
 	saveMetadata := func(rr TimelineRequestResponse) error {
 		return saveMetadataToFile(dirName, "timeline-likes", queryId, rr);
 	}
+	sh := shell.NewShell("localhost:5001")
+	terminateIfError(err)
 	saveMedia := func(item CoubMediaRequestResponse) error {
-		return saveMediaToFile(dirName, item)
+		return saveMediaToIPFS(sh, item)
 	}
 	err = doTimelineLikes(saveMetadata, saveMedia, updProgress)
 	terminateIfError(err)
@@ -163,6 +167,68 @@ func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func saveMediaToIPFS(sh *shell.Shell, data CoubMediaRequestResponse) error {
+	dirName, err := os.MkdirTemp("", "coub-archive")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dirName)
+	err = saveBytesToFile(filepath.Join(dirName, "best-video", "video"+path.Ext(data.VideoRequest)), data.BestVideo)
+	if err != nil {
+		return err
+	}
+	err = saveBytesToFile(filepath.Join(dirName, "best-video", "request.txt"), ([]byte)(data.VideoRequest))
+	if err != nil {
+		return err
+	}
+	if data.BestAudio != nil {
+		err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio"+path.Ext(data.AudioRequest)), data.BestAudio)
+		if err != nil {
+			return err
+		}
+		err = saveBytesToFile(filepath.Join(dirName, "best-audio", "request.txt"), ([]byte)(data.AudioRequest))
+		if err != nil {
+			return err
+		}
+	}
+	res, err := sh.AddDir(dirName)
+	if err != nil {
+		return err
+	}
+	err = ipfsFilesMkdirParents(sh, context.Background(), "/coubs/media")
+	if err != nil {
+		return err
+	}
+	err = sh.FilesCp(context.Background(), "/ipfs/" + res, "/coubs/media/" + data.CoubPermalink)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ipfsFilesMkdirParents(sh *shell.Shell, ctx context.Context, dir string) error {
+	if dir == "/" {
+		return nil
+	}
+	par := path.Dir(dir)
+	err := ipfsFilesMkdirParents(sh, ctx, par)
+	if err != nil {
+		return err
+	}
+	err = sh.FilesMkdir(ctx, dir)
+	if err == nil {
+		return nil
+	}
+	stat, err := sh.FilesStat(ctx, dir)
+	if err != nil {
+		return err
+	}
+	if stat.Type != "directory" {
+		return fmt.Errorf("tried to make directory %s, but it is a %s", dir, stat.Type)
 	}
 	return nil
 }
