@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"encoding/json"
 	"strings"
-	"strconv"
 	"time"
 	"path"
 	"path/filepath"
@@ -101,7 +100,7 @@ func saveMetadataToFile(rootdir string, topic string, queryId string, data Timel
 		if err != nil {
 			return err
 		}
-		err = saveBytesToFile(filepath.Join(rootdir, topic, queryId, strconv.Itoa(data.Response.Page), cb.Permalink, "metadata.txt"), b)
+		err = saveBytesToFile(filepath.Join(rootdir, topic, queryId, fmt.Sprintf("%03d", data.Response.Page), cb.Permalink, "metadata.txt"), b)
 		if err != nil {
 			return err
 		}
