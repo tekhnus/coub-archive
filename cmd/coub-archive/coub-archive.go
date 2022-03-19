@@ -18,23 +18,39 @@ import (
 )
 
 func main() {
-	err := doMain()
+	err := doTimelineLikes()
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func doMain() error {
+func doTimelineLikes() error {
+	headers, err := getAuthHeaders()
+	if err != nil {
+		return err
+	}
+	return doTimeline("timeline-likes", "/timeline/likes", []string{}, headers)
+}
+
+func getAuthHeaders() (map[string]string, error) {
+	exePath, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	curlfile := filepath.Join(filepath.Dir(exePath), "coub-curl.txt")
+	cookie, err := readCookies(curlfile)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"Cookie": cookie}, nil
+}
+
+func doTimeline(topic string, apiPath string, params []string, headers map[string]string) error {
 	var wg sync.WaitGroup
 	errchan := make(chan error)
 	wg.Add(1)
 	go reportErrors(errchan, &wg)
 	exePath, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	curlfile := filepath.Join(filepath.Dir(exePath), "coub-curl.txt")
-	cookie, err := readCookies(curlfile)
 	if err != nil {
 		return err
 	}
@@ -57,11 +73,6 @@ func doMain() error {
 		})
 	}
 	reqresp := make(chan TimelineRequestResponse)
-
-	params := []string{}
-	apiPath := "/timeline/likes"
-	topic := "timelike-likes"
-	headers := map[string]string{"Cookie": cookie}
 
 	go paginateThroughTimeline(reqresp, errchan, apiPath, params, headers)
 
