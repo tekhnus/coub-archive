@@ -22,7 +22,18 @@ var mediaClient http.Client
 
 func main() {
 	updProgress := progressBar()
-	err := doTimelineLikes(updProgress)
+	exePath, err := os.Executable()
+	terminateIfError(err)
+	dirTag := "coubs"
+	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
+	queryId := time.Now().Format("2006-01-02T15_04_05")
+	saveMetadata := func(rr TimelineRequestResponse) error {
+		return saveMetadataToFile(dirName, "timeline-likes", queryId, rr);
+	}
+	saveMedia := func(item CoubMediaRequestResponse) error {
+		return saveMediaToFile(dirName, item)
+	}
+	err = doTimelineLikes(saveMetadata, saveMedia, updProgress)
 	terminateIfError(err)
 }
 
@@ -44,23 +55,10 @@ func terminateIfError(err error) {
 	log.Fatal(err)
 }
 
-func doTimelineLikes(updProgress func(int, int)) error {
+func doTimelineLikes(saveMetadata func(TimelineRequestResponse) error, saveMedia func(CoubMediaRequestResponse) error, updProgress func(int, int)) error {
 	headers, err := getAuthHeaders()
 	if err != nil {
 		return err
-	}
-	exePath, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	dirTag := "coubs"
-	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
-	queryId := time.Now().Format("2006-01-02T15_04_05")
-	saveMetadata := func(rr TimelineRequestResponse) error {
-		return saveMetadataToFile(dirName, "timeline-likes", queryId, rr);
-	}
-	saveMedia := func(item CoubMediaRequestResponse) error {
-		return saveMediaToFile(dirName, item)
 	}
 	return doTimeline(saveMetadata, saveMedia, "/timeline/likes", []string{}, headers, updProgress)
 }
