@@ -67,13 +67,13 @@ func doMain() error {
 		firstPage := rr.Response
 		cnt += len(firstPage.Coubs)
 		bar.ChangeMax(cnt)
+		err := saveMetadataToFile(dirName, "timeline-likes", "id", rr)
+		if err != nil {
+			return err
+		}
 		for _, rawcb := range firstPage.Coubs {
 			var cb Coub
 			err := json.Unmarshal(rawcb, &cb)
-			if err != nil {
-				return err
-			}
-			err = saveCoubMetadata(filepath.Join(dirName, "timeline-likes", strconv.Itoa(rr.Response.Page), cb.Permalink), rawcb)
 			if err != nil {
 				return err
 			}
@@ -84,6 +84,22 @@ func doMain() error {
 	close(queue)
 	close(errchan)
 	wg.Wait()
+	return nil
+}
+
+func saveMetadataToFile(rootdir string, topic string, queryId string, data TimelineRequestResponse) error {
+	page := data.Response
+	for _, rawcb := range page.Coubs {
+		var cb Coub
+		err := json.Unmarshal(rawcb, &cb)
+		if err != nil {
+			return err
+		}
+		err = saveCoubMetadata(filepath.Join(rootdir, topic, queryId, strconv.Itoa(data.Response.Page), cb.Permalink), rawcb)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
