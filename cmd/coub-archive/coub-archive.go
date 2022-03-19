@@ -86,24 +86,26 @@ func doTimeline(topic string, apiPath string, params []string, headers map[strin
 
 	go func() {
 		defer close(queue)
-		paginateThroughTimeline(errchan, apiPath, params, headers, func(rr TimelineRequestResponse) {
+		err := paginateThroughTimeline(apiPath, params, headers, func(rr TimelineRequestResponse) error {
 			err := saveMetadataToFile(dirName, topic, queryId, rr)
 			if err != nil {
-				errchan <- err
-				return
+				return err
 			}
 			firstPage := rr.Response
 			for _, rawcb := range firstPage.Coubs {
 				var cb Coub
 				err := json.Unmarshal(rawcb, &cb)
 				if err != nil {
-					errchan <- err
-					return
+					return err
 				}
 				updProgress(+0, +1)
 				queue <- cb
 			}
+			return nil
 		})
+		if err != nil {
+			errchan <- err
+		}
 	}()
 	close(errchan)
 	wg.Wait()
@@ -184,29 +186,31 @@ func mediaDownloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRe
 	}
 }
 
-func paginateThroughTimeline(errchan chan error, query string, params []string, headers map[string]string, callback func(TimelineRequestResponse)) {
+func paginateThroughTimeline(query string, params []string, headers map[string]string, callback func(TimelineRequestResponse) error) error {
 	page := 1
 	for {
 		extParams := append(params, fmt.Sprintf("page=%d", page), "per_page=25")
 		q := query + "?" + strings.Join(extParams, "&")
 		body, err := performRequest(q, headers)
 		if err != nil {
-			errchan <- err
-			return
+			return err
 		}
 		var firstPage TimelineResponse
 		err = json.Unmarshal(body, &firstPage)
 		if err != nil {
-			errchan <- err
-			return
+			return err
 		}
-		callback(TimelineRequestResponse{q, firstPage})
+		err = callback(TimelineRequestResponse{q, firstPage})
+		if err != nil {
+			return err
+		}
 		totalPages := firstPage.Total_Pages
 		if page == totalPages {
 			break
 		}
 		page += 1
 	}
+	return nil
 }
 
 func performRequest(query string, headers map[string]string) ([]byte, error) {
