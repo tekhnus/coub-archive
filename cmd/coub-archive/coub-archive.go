@@ -33,12 +33,7 @@ func doMain() error {
 	if err != nil {
 		return err
 	}
-	var curlfile string
-	if len(os.Args) > 1 {
-		curlfile = os.Args[1]
-	} else {
-		curlfile = filepath.Join(filepath.Dir(exePath), "coub-curl.txt")
-	}
+	curlfile := filepath.Join(filepath.Dir(exePath), "coub-curl.txt")
 	cookie, err := readCookies(curlfile)
 	if err != nil {
 		return err
