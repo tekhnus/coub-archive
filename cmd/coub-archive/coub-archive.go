@@ -17,12 +17,17 @@ import (
 	"log"
 )
 
+func terminateIfError(err error) {
+	if err == nil {
+		return
+	}
+	log.Fatal(err)
+}
+
 func main() {
 	updProgress := terminalProgressBar()
 	err := doTimelineLikes(updProgress)
-	if err != nil {
-		log.Fatal(err)
-	}
+	terminateIfError(err)
 }
 
 func terminalProgressBar() func(int, int) {
@@ -59,9 +64,6 @@ func getAuthHeaders() (map[string]string, error) {
 
 func doTimeline(topic string, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
 	var wg sync.WaitGroup
-	errchan := make(chan error)
-	wg.Add(1)
-	go reportErrors(errchan, &wg)
 	exePath, err := os.Executable()
 	if err != nil {
 		return err
@@ -103,11 +105,8 @@ func doTimeline(topic string, apiPath string, params []string, headers map[strin
 			}
 			return nil
 		})
-		if err != nil {
-			errchan <- err
-		}
+		terminateIfError(err)
 	}()
-	close(errchan)
 	wg.Wait()
 	return nil
 }
@@ -154,13 +153,6 @@ func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
 		return err
 	}
 	return nil
-}
-
-func reportErrors(errchan chan error, wg *sync.WaitGroup) {
-	defer wg.Done()
-	for err := range errchan {
-		log.Println(err)
-	}
 }
 
 func readCookies(curlfile string) (string, error) {
