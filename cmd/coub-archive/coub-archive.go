@@ -70,7 +70,7 @@ func doMain() error {
 			if err != nil {
 				return err
 			}
-			coubDir := filepath.Join(dirName, strconv.Itoa(cb.Id))
+			coubDir := filepath.Join(dirName, "media", strconv.Itoa(cb.Id))
 			queue <- Task{cb, coubDir}
 		}
 	}
@@ -154,12 +154,12 @@ func performRequest(query string, cookies string) ([]byte, error) {
 }
 
 func download(c Coub, dirName string) {
-	err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, dirName, "vi")
+	err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, filepath.Join(dirName, "best-video"), "video")
 	if err != nil {
 		panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
 	}
 	if c.File_Versions.Html5.Audio != nil {
-		err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio, dirName, "au")
+		err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio, filepath.Join(dirName, "best-audio"), "audio")
 		if err != nil {
 			panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
 		}
@@ -189,6 +189,13 @@ func queryAndSaveToFile(url string, dirName string, fname string) {
 	if err != nil {
 		panic(err)
 	}
+
+	rf, err := os.Create(filepath.Join(dirName, "request.txt"))
+	if err != nil {
+		panic(err)
+	}
+	defer rf.Close()
+	rf.Write(([]byte)(url))
 
 	parts := strings.Split(url, ".")
 	ext := "." + parts[len(parts) - 1]
