@@ -7,6 +7,7 @@ import (
 	"os"
 	"net/http"
 	"encoding/json"
+	"strings"
 	"strconv"
 	"time"
 	"path"
@@ -61,16 +62,17 @@ func doMain() error {
 		})
 	}
 	reqresp := make(chan TimelineRequestResponse)
-	go paginateThroughTimeline(reqresp, errchan, "/timeline/likes?", cookie)
+	params := []string{}
+	go paginateThroughTimeline(reqresp, errchan, "/timeline/likes", params, cookie)
 
 	for rr := range reqresp {
-		firstPage := rr.Response
-		cnt += len(firstPage.Coubs)
+		cnt += len(rr.Response.Coubs)
 		bar.ChangeMax(cnt)
 		err := saveMetadataToFile(dirName, "timeline-likes", "id", rr)
 		if err != nil {
 			return err
 		}
+		firstPage := rr.Response
 		for _, rawcb := range firstPage.Coubs {
 			var cb Coub
 			err := json.Unmarshal(rawcb, &cb)
@@ -158,11 +160,12 @@ func mediaDownloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRe
 	}
 }
 
-func paginateThroughTimeline(outp chan TimelineRequestResponse, errchan chan error, query string, cookies string) {
+func paginateThroughTimeline(outp chan TimelineRequestResponse, errchan chan error, query string, params []string, cookies string) {
 	defer close(outp)
 	page := 1
 	for {
-		q := fmt.Sprintf("%spage=%d&per_page=25", query, page)
+		extParams := append(params, fmt.Sprintf("page=%d", page), "per_page=25")
+		q := query + "?" + strings.Join(extParams, "&")
 		body, err := performRequest(q, cookies)
 		if err != nil {
 			errchan <- err
