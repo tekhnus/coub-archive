@@ -61,8 +61,9 @@ func doMain() error {
 	params := []string{}
 	apiPath := "/timeline/likes"
 	topic := "timelike-likes"
+	headers := map[string]string{"Cookie": cookie}
 
-	go paginateThroughTimeline(reqresp, errchan, apiPath, params, cookie)
+	go paginateThroughTimeline(reqresp, errchan, apiPath, params, headers)
 
 	for rr := range reqresp {
 		cnt += len(rr.Response.Coubs)
@@ -161,13 +162,13 @@ func mediaDownloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRe
 	}
 }
 
-func paginateThroughTimeline(outp chan TimelineRequestResponse, errchan chan error, query string, params []string, cookies string) {
+func paginateThroughTimeline(outp chan TimelineRequestResponse, errchan chan error, query string, params []string, headers map[string]string) {
 	defer close(outp)
 	page := 1
 	for {
 		extParams := append(params, fmt.Sprintf("page=%d", page), "per_page=25")
 		q := query + "?" + strings.Join(extParams, "&")
-		body, err := performRequest(q, cookies)
+		body, err := performRequest(q, headers)
 		if err != nil {
 			errchan <- err
 			return
@@ -187,12 +188,14 @@ func paginateThroughTimeline(outp chan TimelineRequestResponse, errchan chan err
 	}
 }
 
-func performRequest(query string, cookies string) ([]byte, error) {
+func performRequest(query string, headers map[string]string) ([]byte, error) {
 	req, err := http.NewRequest("GET", "https://coub.com/api/v2" + query, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Cookie", cookies)
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
 	var client http.Client
 	resp, err := client.Do(req)
 	if err != nil {
