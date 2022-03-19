@@ -49,7 +49,17 @@ func doTimelineLikes(updProgress func(int, int)) error {
 	if err != nil {
 		return err
 	}
-	return doTimeline("timeline-likes", "/timeline/likes", []string{}, headers, updProgress)
+	exePath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	dirTag := "coubs"
+	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
+	queryId := time.Now().Format("2006-01-02T15_04_05")
+	saveMetadata := func(rr TimelineRequestResponse) error {
+		return saveMetadataToFile(dirName, "timeline-likes", queryId, rr);
+	}
+	return doTimeline(saveMetadata, "/timeline/likes", []string{}, headers, updProgress)
 }
 
 func getAuthHeaders() (map[string]string, error) {
@@ -65,20 +75,19 @@ func getAuthHeaders() (map[string]string, error) {
 	return map[string]string{"Cookie": cookie}, nil
 }
 
-func doTimeline(topic string, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
+func doTimeline(saveMetadata func(TimelineRequestResponse) error, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
 	exePath, err := os.Executable()
 	if err != nil {
 		return err
 	}
 	dirTag := "coubs"
 	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
-	queryId := time.Now().Format("2006-01-02T15_04_05")
 
 	queue := make(chan Coub, 64000)
 	go func() {
 		defer close(queue)
 		err := paginateThroughTimeline(apiPath, params, headers, func(rr TimelineRequestResponse) error {
-			err := saveMetadataToFile(dirName, topic, queryId, rr)
+			err := saveMetadata(rr)
 			if err != nil {
 				return err
 			}
