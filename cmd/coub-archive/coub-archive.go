@@ -17,20 +17,13 @@ import (
 	"log"
 )
 
-func terminateIfError(err error) {
-	if err == nil {
-		return
-	}
-	log.Fatal(err)
-}
-
 func main() {
-	updProgress := terminalProgressBar()
+	updProgress := progressBar()
 	err := doTimelineLikes(updProgress)
 	terminateIfError(err)
 }
 
-func terminalProgressBar() func(int, int) {
+func progressBar() func(int, int) {
 	bar := progressbar.Default(1)
 	total := 1
 
@@ -39,6 +32,13 @@ func terminalProgressBar() func(int, int) {
 		bar.Add(deltaDone)
 		bar.ChangeMax(total)
 	}
+}
+
+func terminateIfError(err error) {
+	if err == nil {
+		return
+	}
+	log.Fatal(err)
 }
 
 func doTimelineLikes(updProgress func(int, int)) error {
