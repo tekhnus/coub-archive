@@ -238,14 +238,14 @@ func performRequest(query string, headers map[string]string) ([]byte, error) {
 func downloadMedia(c Coub) (CoubMediaRequestResponse, error) {
 	videoUrl, videoB, err := downloadResource(c.File_Versions.Html5.Video)
 	if err != nil {
-		return CoubMediaRequestResponse{}, fmt.Errorf("while processing coub %n: %w", c.Permalink, err)
+		return CoubMediaRequestResponse{}, fmt.Errorf("while processing coub %s: %w", c.Permalink, err)
 	}
 	audioUrl := ""
 	var audioB []byte
 	if c.File_Versions.Html5.Audio != nil {
 		audioUrl, audioB, err = downloadResource(*c.File_Versions.Html5.Audio)
 		if err != nil {
-			return CoubMediaRequestResponse{}, fmt.Errorf("while processing coub %n: %w", c.Permalink, err)
+			return CoubMediaRequestResponse{}, fmt.Errorf("while processing coub %s: %w", c.Permalink, err)
 		}
 	}
 	return CoubMediaRequestResponse{c.Permalink, videoUrl, videoB, audioUrl, audioB}, nil
