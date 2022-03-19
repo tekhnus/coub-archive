@@ -52,7 +52,7 @@ func doMain() error {
 	fmt.Println("saving to", absDir)
 	cnt := 0
 	bar := progressbar.Default(1)
-	queue := make(chan Task, 64000)
+	queue := make(chan Coub, 64000)
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
 		go downloader(queue, &wg, func(item CoubMediaRequestResponse) {
@@ -77,7 +77,7 @@ func doMain() error {
 			if err != nil {
 				return err
 			}
-			queue <- Task{cb}
+			queue <- cb
 		}
 	}
 	close(queue)
@@ -128,10 +128,10 @@ func readCookies(curlfile string) (string, error) {
 	return cookie, nil
 }
 
-func downloader(ch chan Task, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
+func downloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
 	defer wg.Done()
 	for t := range ch {
-		res := download(t.C)
+		res := download(t)
 		callback(res)
 	}
 }
@@ -295,10 +295,6 @@ type CoubHTML5Resource struct {
 
 type CoubHTML5Link struct {
 	Url string
-}
-
-type Task struct {
-	C Coub
 }
 
 type TimelineRequestResponse struct {
