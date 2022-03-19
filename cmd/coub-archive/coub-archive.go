@@ -55,8 +55,9 @@ func doMain() error {
 	queue := make(chan Task, 64000)
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
-		go downloader(queue, &wg, bar, func(item CoubMediaRequestResponse) {
+		go downloader(queue, &wg, func(item CoubMediaRequestResponse) {
 			saveToFile(dirName, item)
+			bar.Add(1)
 		})
 	}
 	reqresp := make(chan TimelineRequestResponse)
@@ -131,12 +132,11 @@ func saveCoubMetadata(dirName string, rawcb json.RawMessage) error {
 	return nil
 }
 
-func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar, callback func(CoubMediaRequestResponse)) {
+func downloader(ch chan Task, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
 	defer wg.Done()
 	for t := range ch {
 		res := download(t.C, t.DirName)
 		callback(res)
-		bar.Add(1)
 	}
 }
 
