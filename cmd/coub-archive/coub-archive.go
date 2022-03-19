@@ -63,7 +63,6 @@ func getAuthHeaders() (map[string]string, error) {
 }
 
 func doTimeline(topic string, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
-	var wg sync.WaitGroup
 	exePath, err := os.Executable()
 	if err != nil {
 		return err
@@ -71,21 +70,8 @@ func doTimeline(topic string, apiPath string, params []string, headers map[strin
 	dirTag := "coubs"
 	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
 	queryId := time.Now().Format("2006-01-02T15_04_05")
-	absDir, err := filepath.Abs(dirName)
-	if err != nil {
-		return err
-	}
-	fmt.Println("saving to", absDir)
 
 	queue := make(chan Coub, 64000)
-	for n := 0; n < 4; n++ {
-		wg.Add(1)
-		go mediaDownloader(queue, &wg, func(item CoubMediaRequestResponse) {
-			saveMediaToFile(dirName, item)
-			updProgress(+1, +0)
-		})
-	}
-
 	go func() {
 		defer close(queue)
 		err := paginateThroughTimeline(apiPath, params, headers, func(rr TimelineRequestResponse) error {
@@ -107,7 +93,25 @@ func doTimeline(topic string, apiPath string, params []string, headers map[strin
 		})
 		terminateIfError(err)
 	}()
+
+	var wg sync.WaitGroup
+	for n := 0; n < 4; n++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := mediaDownloader(queue, func(item CoubMediaRequestResponse) error {
+				err := saveMediaToFile(dirName, item)
+				if err != nil {
+					return err
+				}
+				updProgress(+1, +0)
+				return nil
+			})
+			terminateIfError(err)
+		}()
+	}
 	wg.Wait()
+
 	return nil
 }
 
@@ -170,13 +174,18 @@ func readCookies(curlfile string) (string, error) {
 	return cookie, nil
 }
 
-func mediaDownloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
-	defer wg.Done()
+func mediaDownloader(ch chan Coub, callback func(CoubMediaRequestResponse) error) error {
 	for coub := range ch {
 		res, err := downloadMedia(coub)
-		terminateIfError(err)
-		callback(res)
+		if err != nil {
+			return err
+		}
+		err = callback(res)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func paginateThroughTimeline(query string, params []string, headers map[string]string, callback func(TimelineRequestResponse) error) error {
