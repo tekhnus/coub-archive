@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"encoding/json"
 	"strings"
+	"strconv"
 	"time"
 	"path/filepath"
 	"sync"
@@ -69,6 +70,10 @@ func doMain() error {
 			if err != nil {
 				return err
 			}
+			err = saveCoubMetadata(filepath.Join(dirName, "timeline-likes", strconv.Itoa(rr.Response.Page), cb.Permalink), rawcb)
+			if err != nil {
+				return err
+			}
 			coubDir := filepath.Join(dirName, "media", cb.Permalink)
 			queue <- Task{cb, coubDir}
 		}
@@ -99,6 +104,29 @@ func readCookies(curlfile string) (string, error) {
 	}
 	cookie := matches[1]
 	return cookie, nil
+}
+
+func saveCoubMetadata(dirName string, rawcb json.RawMessage) error {
+	err := os.MkdirAll(dirName, 0775)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(filepath.Join(dirName, "metadata.txt"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	b, err := json.Marshal(rawcb)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(b)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func downloader(ch chan Task, wg *sync.WaitGroup, bar *progressbar.ProgressBar) {
