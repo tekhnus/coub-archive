@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"errors"
 	"github.com/schollz/progressbar/v3"
@@ -70,7 +69,7 @@ func doMain() error {
 			if err != nil {
 				return err
 			}
-			coubDir := filepath.Join(dirName, "media", strconv.Itoa(cb.Id))
+			coubDir := filepath.Join(dirName, "media", cb.Permalink)
 			queue <- Task{cb, coubDir}
 		}
 	}
@@ -156,12 +155,12 @@ func performRequest(query string, cookies string) ([]byte, error) {
 func download(c Coub, dirName string) {
 	err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video, filepath.Join(dirName, "best-video"), "video")
 	if err != nil {
-		panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
+		panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
 	}
 	if c.File_Versions.Html5.Audio != nil {
 		err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio, filepath.Join(dirName, "best-audio"), "audio")
 		if err != nil {
-			panic(fmt.Errorf("while processing coub %n: %w", c.Id, err))
+			panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
 		}
 	}
 }
@@ -229,6 +228,7 @@ type Timeline struct {
 
 type Coub struct {
 	Id int
+	Permalink string
 	File_Versions CoubVersions
 }
 
