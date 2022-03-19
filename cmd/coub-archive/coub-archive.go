@@ -84,26 +84,27 @@ func doTimeline(topic string, apiPath string, params []string, headers map[strin
 		})
 	}
 
-	go paginateThroughTimeline(errchan, apiPath, params, headers, func(rr TimelineRequestResponse) {
-		err := saveMetadataToFile(dirName, topic, queryId, rr)
-		if err != nil {
-			errchan <- err
-			return
-		}
-		firstPage := rr.Response
-		for _, rawcb := range firstPage.Coubs {
-			var cb Coub
-			err := json.Unmarshal(rawcb, &cb)
+	go func() {
+		defer close(queue)
+		paginateThroughTimeline(errchan, apiPath, params, headers, func(rr TimelineRequestResponse) {
+			err := saveMetadataToFile(dirName, topic, queryId, rr)
 			if err != nil {
 				errchan <- err
 				return
 			}
-			updProgress(+0, +1)
-			queue <- cb
-		}
-	}, func() {
-		close(queue)
-	})
+			firstPage := rr.Response
+			for _, rawcb := range firstPage.Coubs {
+				var cb Coub
+				err := json.Unmarshal(rawcb, &cb)
+				if err != nil {
+					errchan <- err
+					return
+				}
+				updProgress(+0, +1)
+				queue <- cb
+			}
+		})
+	}()
 	close(errchan)
 	wg.Wait()
 	return nil
@@ -183,8 +184,7 @@ func mediaDownloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRe
 	}
 }
 
-func paginateThroughTimeline(errchan chan error, query string, params []string, headers map[string]string, callback func(TimelineRequestResponse), finalize func()) {
-	defer finalize()
+func paginateThroughTimeline(errchan chan error, query string, params []string, headers map[string]string, callback func(TimelineRequestResponse)) {
 	page := 1
 	for {
 		extParams := append(params, fmt.Sprintf("page=%d", page), "per_page=25")
