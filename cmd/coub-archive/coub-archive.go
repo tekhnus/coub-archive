@@ -59,7 +59,10 @@ func doTimelineLikes(updProgress func(int, int)) error {
 	saveMetadata := func(rr TimelineRequestResponse) error {
 		return saveMetadataToFile(dirName, "timeline-likes", queryId, rr);
 	}
-	return doTimeline(saveMetadata, "/timeline/likes", []string{}, headers, updProgress)
+	saveMedia := func(item CoubMediaRequestResponse) error {
+		return saveMediaToFile(dirName, item)
+	}
+	return doTimeline(saveMetadata, saveMedia, "/timeline/likes", []string{}, headers, updProgress)
 }
 
 func getAuthHeaders() (map[string]string, error) {
@@ -75,14 +78,7 @@ func getAuthHeaders() (map[string]string, error) {
 	return map[string]string{"Cookie": cookie}, nil
 }
 
-func doTimeline(saveMetadata func(TimelineRequestResponse) error, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
-	exePath, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	dirTag := "coubs"
-	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
-
+func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func(CoubMediaRequestResponse) error, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
 	queue := make(chan Coub, 64000)
 	go func() {
 		defer close(queue)
@@ -112,7 +108,7 @@ func doTimeline(saveMetadata func(TimelineRequestResponse) error, apiPath string
 		go func() {
 			defer wg.Done()
 			err := mediaDownloader(queue, func(item CoubMediaRequestResponse) error {
-				err := saveMediaToFile(dirName, item)
+				err := saveMedia(item)
 				if err != nil {
 					return err
 				}
