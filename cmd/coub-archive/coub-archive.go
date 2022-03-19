@@ -95,7 +95,11 @@ func saveMetadataToFile(rootdir string, topic string, queryId string, data Timel
 		if err != nil {
 			return err
 		}
-		err = saveCoubMetadata(filepath.Join(rootdir, topic, queryId, strconv.Itoa(data.Response.Page), cb.Permalink), rawcb)
+		b, err := json.Marshal(rawcb)
+		if err != nil {
+			return err
+		}
+		err = saveBytesToFile(filepath.Join(rootdir, topic, queryId, strconv.Itoa(data.Response.Page), cb.Permalink, "metadata.txt"), b)
 		if err != nil {
 			return err
 		}
@@ -123,29 +127,6 @@ func readCookies(curlfile string) (string, error) {
 	}
 	cookie := matches[1]
 	return cookie, nil
-}
-
-func saveCoubMetadata(dirName string, rawcb json.RawMessage) error {
-	err := os.MkdirAll(dirName, 0775)
-	if err != nil {
-		return err
-	}
-
-	f, err := os.Create(filepath.Join(dirName, "metadata.txt"))
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	b, err := json.Marshal(rawcb)
-	if err != nil {
-		return err
-	}
-	_, err = f.Write(b)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func downloader(ch chan Task, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
