@@ -17,6 +17,9 @@ import (
 	"time"
 )
 
+var metadataClient http.Client
+var mediaClient http.Client
+
 func main() {
 	updProgress := progressBar()
 	err := doTimelineLikes(updProgress)
@@ -223,8 +226,7 @@ func performRequest(query string, headers map[string]string) ([]byte, error) {
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
-	var client http.Client
-	resp, err := client.Do(req)
+	resp, err := metadataClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +263,12 @@ func downloadResource(res CoubHTML5Resource) (string, []byte, error) {
 }
 
 func downloadFromUrl(url string) ([]byte, error) {
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	req.Close = true
+	if err != nil {
+		return nil, err
+	}
+	resp, err := mediaClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
