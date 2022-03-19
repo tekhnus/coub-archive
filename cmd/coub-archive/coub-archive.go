@@ -55,7 +55,7 @@ func doMain() error {
 	queue := make(chan Coub, 64000)
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
-		go downloader(queue, &wg, func(item CoubMediaRequestResponse) {
+		go mediaDownloader(queue, &wg, func(item CoubMediaRequestResponse) {
 			saveToFile(dirName, item)
 			bar.Add(1)
 		})
@@ -106,6 +106,28 @@ func saveMetadataToFile(rootdir string, topic string, queryId string, data Timel
 	return nil
 }
 
+func saveToFile(rootdir string, data CoubMediaRequestResponse) error {
+	dirName := filepath.Join(rootdir, "media", data.CoubPermalink)
+
+	err := saveBytesToFile(filepath.Join(dirName, "best-video", "video" + path.Ext(data.VideoRequest)), data.BestVideo)
+	if err != nil {
+		return err
+	}
+	err = saveBytesToFile(filepath.Join(dirName, "best-video", "request.txt"), ([]byte)(data.VideoRequest))
+	if err != nil {
+		return err
+	}
+	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio" + path.Ext(data.AudioRequest)), data.BestAudio)
+	if err != nil {
+		return err
+	}
+	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "request.txt"), ([]byte)(data.AudioRequest))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func reportErrors(errchan chan error, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for err := range errchan {
@@ -128,10 +150,10 @@ func readCookies(curlfile string) (string, error) {
 	return cookie, nil
 }
 
-func downloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
+func mediaDownloader(ch chan Coub, wg *sync.WaitGroup, callback func(CoubMediaRequestResponse)) {
 	defer wg.Done()
-	for t := range ch {
-		res := download(t)
+	for coub := range ch {
+		res := downloadMedia(coub)
 		callback(res)
 	}
 }
@@ -179,15 +201,15 @@ func performRequest(query string, cookies string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func download(c Coub) CoubMediaRequestResponse {
-	videoUrl, videoB, err := queryAndSaveResourceToFile(c.File_Versions.Html5.Video)
+func downloadMedia(c Coub) CoubMediaRequestResponse {
+	videoUrl, videoB, err := downloadResource(c.File_Versions.Html5.Video)
 	if err != nil {
 		panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
 	}
 	audioUrl := ""
 	var audioB []byte
 	if c.File_Versions.Html5.Audio != nil {
-		audioUrl, audioB, err = queryAndSaveResourceToFile(*c.File_Versions.Html5.Audio)
+		audioUrl, audioB, err = downloadResource(*c.File_Versions.Html5.Audio)
 		if err != nil {
 			panic(fmt.Errorf("while processing coub %n: %w", c.Permalink, err))
 		}
@@ -195,16 +217,16 @@ func download(c Coub) CoubMediaRequestResponse {
 	return CoubMediaRequestResponse{c.Permalink, videoUrl, videoB, audioUrl, audioB}
 }
 
-func queryAndSaveResourceToFile(res CoubHTML5Resource) (string, []byte, error) {
+func downloadResource(res CoubHTML5Resource) (string, []byte, error) {
 	u := getUrl(res)
 	if u == "" {
 		return "", nil, errors.New("resource not found")
 	}
-	b, err := queryAndSaveToFile(u)
+	b, err := downloadFromUrl(u)
 	return u, b, err
 }
 
-func queryAndSaveToFile(url string) ([]byte, error) {
+func downloadFromUrl(url string) ([]byte, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -214,28 +236,6 @@ func queryAndSaveToFile(url string) ([]byte, error) {
 		return nil, err
 	}
 	return io.ReadAll(resp.Body)
-}
-
-func saveToFile(rootdir string, data CoubMediaRequestResponse) error {
-	dirName := filepath.Join(rootdir, "media", data.CoubPermalink)
-
-	err := saveBytesToFile(filepath.Join(dirName, "best-video", "video" + path.Ext(data.VideoRequest)), data.BestVideo)
-	if err != nil {
-		return err
-	}
-	err = saveBytesToFile(filepath.Join(dirName, "best-video", "request.txt"), ([]byte)(data.VideoRequest))
-	if err != nil {
-		return err
-	}
-	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio" + path.Ext(data.AudioRequest)), data.BestAudio)
-	if err != nil {
-		return err
-	}
-	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "request.txt"), ([]byte)(data.AudioRequest))
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func saveBytesToFile(path string, b []byte) error {
