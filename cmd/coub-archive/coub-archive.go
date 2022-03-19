@@ -57,7 +57,7 @@ func doMain() error {
 	for n := 0; n < 4; n++ {
 		wg.Add(1)
 		go mediaDownloader(queue, &wg, func(item CoubMediaRequestResponse) {
-			saveToFile(dirName, item)
+			saveMediaToFile(dirName, item)
 			bar.Add(1)
 		})
 	}
@@ -114,7 +114,7 @@ func saveMetadataToFile(rootdir string, topic string, queryId string, data Timel
 	return nil
 }
 
-func saveToFile(rootdir string, data CoubMediaRequestResponse) error {
+func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
 	dirName := filepath.Join(rootdir, "media", data.CoubPermalink)
 
 	err := saveBytesToFile(filepath.Join(dirName, "best-video", "video" + path.Ext(data.VideoRequest)), data.BestVideo)
