@@ -151,13 +151,15 @@ func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
 	if err != nil {
 		return err
 	}
-	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio"+path.Ext(data.AudioRequest)), data.BestAudio)
-	if err != nil {
-		return err
-	}
-	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "request.txt"), ([]byte)(data.AudioRequest))
-	if err != nil {
-		return err
+	if data.BestAudio != nil {
+		err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio"+path.Ext(data.AudioRequest)), data.BestAudio)
+		if err != nil {
+			return err
+		}
+		err = saveBytesToFile(filepath.Join(dirName, "best-audio", "request.txt"), ([]byte)(data.AudioRequest))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
