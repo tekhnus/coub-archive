@@ -62,13 +62,17 @@ func doMain() error {
 		})
 	}
 	reqresp := make(chan TimelineRequestResponse)
+
 	params := []string{}
-	go paginateThroughTimeline(reqresp, errchan, "/timeline/likes", params, cookie)
+	apiPath := "/timeline/likes"
+	topic := "timelike-likes"
+
+	go paginateThroughTimeline(reqresp, errchan, apiPath, params, cookie)
 
 	for rr := range reqresp {
 		cnt += len(rr.Response.Coubs)
 		bar.ChangeMax(cnt)
-		err := saveMetadataToFile(dirName, "timeline-likes", queryId, rr)
+		err := saveMetadataToFile(dirName, topic, queryId, rr)
 		if err != nil {
 			return err
 		}
