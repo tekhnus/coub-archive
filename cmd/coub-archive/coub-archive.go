@@ -1,20 +1,20 @@
 package main
 
 import (
-	"fmt"
-	"io"
-	"regexp"
-	"os"
-	"net/http"
 	"encoding/json"
-	"strings"
-	"time"
+	"errors"
+	"fmt"
+	"github.com/schollz/progressbar/v3"
+	"io"
+	"log"
+	"net/http"
+	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
-	"errors"
-	"github.com/schollz/progressbar/v3"
-	"log"
+	"time"
 )
 
 func main() {
@@ -27,7 +27,7 @@ func progressBar() func(int, int) {
 	bar := progressbar.Default(1)
 	total := 1
 
-	return func (deltaDone int, deltaTotal int) {
+	return func(deltaDone int, deltaTotal int) {
 		total += deltaTotal
 		bar.Add(deltaDone)
 		bar.ChangeMax(total)
@@ -140,7 +140,7 @@ func saveMetadataToFile(rootdir string, topic string, queryId string, data Timel
 func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
 	dirName := filepath.Join(rootdir, "media", data.CoubPermalink)
 
-	err := saveBytesToFile(filepath.Join(dirName, "best-video", "video" + path.Ext(data.VideoRequest)), data.BestVideo)
+	err := saveBytesToFile(filepath.Join(dirName, "best-video", "video"+path.Ext(data.VideoRequest)), data.BestVideo)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
 	if err != nil {
 		return err
 	}
-	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio" + path.Ext(data.AudioRequest)), data.BestAudio)
+	err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio"+path.Ext(data.AudioRequest)), data.BestAudio)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func readCookies(curlfile string) (string, error) {
 	inputS := (string)(input)
 	r := regexp.MustCompile(`-H 'Cookie: (.*)'`)
 	matches := r.FindStringSubmatch(inputS)
-	if len(matches) <=1 {
+	if len(matches) <= 1 {
 		return "", fmt.Errorf("something is wrong with cookie file")
 	}
 	cookie := matches[1]
@@ -216,7 +216,7 @@ func paginateThroughTimeline(query string, params []string, headers map[string]s
 }
 
 func performRequest(query string, headers map[string]string) ([]byte, error) {
-	req, err := http.NewRequest("GET", "https://coub.com/api/v2" + query, nil)
+	req, err := http.NewRequest("GET", "https://coub.com/api/v2"+query, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -301,14 +301,14 @@ func getUrl(res CoubHTML5Resource) string {
 }
 
 type Timeline struct {
-	Page int
+	Page        int
 	Total_Pages int
-	Coubs []Coub
+	Coubs       []Coub
 }
 
 type Coub struct {
-	Id int
-	Permalink string
+	Id            int
+	Permalink     string
 	File_Versions CoubVersions
 }
 
@@ -323,8 +323,8 @@ type CoubHTML5 struct {
 
 type CoubHTML5Resource struct {
 	Higher CoubHTML5Link
-	High CoubHTML5Link
-	Med CoubHTML5Link
+	High   CoubHTML5Link
+	Med    CoubHTML5Link
 }
 
 type CoubHTML5Link struct {
@@ -332,20 +332,20 @@ type CoubHTML5Link struct {
 }
 
 type TimelineRequestResponse struct {
-	Request string
+	Request  string
 	Response TimelineResponse
 }
 
 type TimelineResponse struct {
-	Page int
+	Page        int
 	Total_Pages int
-	Coubs []json.RawMessage
+	Coubs       []json.RawMessage
 }
 
 type CoubMediaRequestResponse struct {
 	CoubPermalink string
-	VideoRequest string
-	BestVideo []byte
-	AudioRequest string
-	BestAudio []byte
+	VideoRequest  string
+	BestVideo     []byte
+	AudioRequest  string
+	BestAudio     []byte
 }
