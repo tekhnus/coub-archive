@@ -30,11 +30,15 @@ func main() {
 	ipfsFlag := flag.Bool("ipfs", false, "upload to ipfs")
 	orderByFlag := flag.String("order-by", "", "field to order by")
 	flag.Parse()
+	sh := shell.NewShell("localhost:5001")
 	var updProgress func(int, int)
 	if !*noguiFlag {
 		err := zenity.Question("Save to IPFS?", zenity.CancelLabel("No"))
 		*ipfsFlag = err == nil
 
+		if *ipfsFlag && !sh.IsUp() {
+			terminateIfError(fmt.Errorf("cannot connect to IPFS app, make sure it is running"))
+		}
 		apiPaths := map[string]string{
 			"my-likes": "/timeline/likes",
 			"my-feed": "/timeline",
@@ -108,7 +112,6 @@ func main() {
 	rootdir := filepath.Dir(exePath)
 	temproot := filepath.Dir(exePath)
 	queryId := time.Now().Format("2006-01-02T15_04_05") + strings.ReplaceAll(*whatFlag, "/", "_") + "_" + *orderByFlag
-	sh := shell.NewShell("localhost:5001")
 	var mu sync.Mutex
 	saveMetadata := func(rr TimelineRequestResponse) error {
 		mu.Lock()
