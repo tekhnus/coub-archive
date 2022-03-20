@@ -30,6 +30,7 @@ func main() {
 	ipfsFlag := flag.Bool("ipfs", false, "upload to ipfs")
 	orderByFlag := flag.String("order-by", "", "field to order by")
 	flag.Parse()
+	var updProgress func(int, int)
 	if !*noguiFlag {
 		err := zenity.Question("Save to IPFS?", zenity.CancelLabel("No"))
 		*ipfsFlag = err == nil
@@ -98,8 +99,10 @@ func main() {
 				*orderByFlag = res
 			}
 		}
+		updProgress = guiProgressBar()
+	} else {
+		updProgress = progressBar()
 	}
-	updProgress := progressBar()
 	exePath, err := os.Executable()
 	terminateIfError(err)
 	rootdir := filepath.Dir(exePath)
@@ -135,6 +138,21 @@ func progressBar() func(int, int) {
 		total += deltaTotal
 		bar.Add(deltaDone)
 		bar.ChangeMax(total)
+	}
+}
+
+func guiProgressBar() func(int, int) {
+	dlg, err := zenity.Progress()
+	terminateIfError(err)
+	dlg.Text("downloading...")
+
+	done := 0
+	total := 0
+
+	return func(deltaDone int, deltaTotal int) {
+		done += deltaDone
+		total += deltaTotal
+		dlg.Value(100 * done / total)
 	}
 }
 
