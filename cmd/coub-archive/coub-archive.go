@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/schollz/progressbar/v3"
 	shell "github.com/ipfs/go-ipfs-api"
@@ -23,17 +24,25 @@ var metadataClient http.Client
 var mediaClient http.Client
 
 func main() {
+	ipfsFlag := flag.Bool("ipfs", false, "upload to ipfs")
+	flag.Parse()
 	updProgress := progressBar()
 	exePath, err := os.Executable()
 	terminateIfError(err)
 	rootdir := filepath.Dir(exePath)
 	temproot := filepath.Dir(exePath)
 	queryId := time.Now().Format("2006-01-02T15_04_05")
-	// sh := shell.NewShell("localhost:5001")
+	sh := shell.NewShell("localhost:5001")
 	saveMetadata := func(rr TimelineRequestResponse) error {
+		if *ipfsFlag {
+			return saveMetaToIPFS(sh, temproot, queryId, rr);
+		}
 		return saveMetaToFile(rootdir, temproot, queryId, rr);
 	}
 	saveMedia := func(tl TimelineRequestResponse, item CoubMediaRequestResponse) error {
+		if *ipfsFlag {
+			return saveMediaToIPFS(sh, temproot, queryId, tl, item);
+		}
 		return saveMediaToFile(rootdir, temproot, queryId, tl, item)
 	}
 	err = doTimelineLikes(saveMetadata, saveMedia, updProgress)
