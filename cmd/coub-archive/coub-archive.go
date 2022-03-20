@@ -33,6 +33,7 @@ func main() {
 	flag.Parse()
 	sh := shell.NewShell("localhost:5001")
 	var updProgress func(int, int)
+	var success func()
 	if !*noguiFlag {
 		guiErrors = true
 		err := zenity.Question("Save to IPFS?", zenity.CancelLabel("No"))
@@ -106,8 +107,12 @@ func main() {
 			}
 		}
 		updProgress = guiProgressBar()
+		success = guiSuccess
 	} else {
 		updProgress = progressBar()
+		success = func() {
+			fmt.Println("\nsuccess!")
+		}
 	}
 	exePath, err := os.Executable()
 	terminateIfError(err)
@@ -133,6 +138,7 @@ func main() {
 	}
 	err = doTimeline(saveMetadata, saveMedia, updProgress, *whatFlag, *orderByFlag)
 	terminateIfError(err)
+	success()
 }
 
 func progressBar() func(int, int) {
@@ -160,6 +166,10 @@ func guiProgressBar() func(int, int) {
 		err := dlg.Value(100 * done / total)
 		terminateIfError(err)
 	}
+}
+
+func guiSuccess() {
+	zenity.Info("success!")
 }
 
 func terminateIfError(err error) {
