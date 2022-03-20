@@ -24,20 +24,19 @@ var mediaClient http.Client
 
 func main() {
 	updProgress := progressBar()
-	exePath, err := os.Executable()
-	terminateIfError(err)
-	dirTag := "coubs"
-	dirName := filepath.Join(filepath.Dir(exePath), dirTag)
+	// exePath, err := os.Executable()
+	// terminateIfError(err)
+	// dirTag := "coubs"
+	// dirName := filepath.Join(filepath.Dir(exePath), dirTag)
 	queryId := time.Now().Format("2006-01-02T15_04_05")
-	saveMetadata := func(rr TimelineRequestResponse) error {
-		return saveMetadataToFile(dirName, "timeline-likes", queryId, rr);
-	}
 	sh := shell.NewShell("localhost:5001")
-	terminateIfError(err)
+	saveMetadata := func(rr TimelineRequestResponse) error {
+		return saveMetaToIPFS(sh, queryId, rr);
+	}
 	saveMedia := func(tl TimelineRequestResponse, item CoubMediaRequestResponse) error {
 		return saveMediaToIPFS(sh, queryId, tl, item)
 	}
-	err = doTimelineLikes(saveMetadata, saveMedia, updProgress)
+	err := doTimelineLikes(saveMetadata, saveMedia, updProgress)
 	terminateIfError(err)
 }
 
@@ -139,7 +138,41 @@ func saveMetadataToFile(rootdir string, topic string, queryId string, data Timel
 		if err != nil {
 			return err
 		}
-		err = saveBytesToFile(filepath.Join(pageRoot, cb.Permalink, "metadata.txt"), b)
+		err = saveBytesToFile(filepath.Join(pageRoot, "coubs", cb.Permalink, "metadata.txt"), b)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func saveMetaToIPFS(sh *shell.Shell, queryId string, data TimelineRequestResponse) error {
+	dirName, err := os.MkdirTemp("", "coub-archive")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dirName)
+	err = saveMetaToStash(dirName, data)
+	if err != nil {
+		return err
+	}
+	return copyStashToIPFS(sh, dirName, path.Join("/coubs", queryId, "pages", fmt.Sprintf("%03d", data.Response.Page)))
+}
+
+func saveMetaToStash(dirName string, data TimelineRequestResponse) error {
+	saveBytesToFile(filepath.Join(dirName, "request.txt"), ([]byte)(data.Request))
+	page := data.Response
+	for _, rawcb := range page.Coubs {
+		var cb Coub
+		err := json.Unmarshal(rawcb, &cb)
+		if err != nil {
+			return err
+		}
+		b, err := json.Marshal(rawcb)
+		if err != nil {
+			return err
+		}
+		err = saveBytesToFile(filepath.Join(dirName, "coubs", cb.Permalink, "meta.txt"), b)
 		if err != nil {
 			return err
 		}
