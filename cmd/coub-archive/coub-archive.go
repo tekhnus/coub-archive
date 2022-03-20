@@ -152,7 +152,8 @@ func guiProgressBar() func(int, int) {
 	return func(deltaDone int, deltaTotal int) {
 		done += deltaDone
 		total += deltaTotal
-		dlg.Value(100 * done / total)
+		err := dlg.Value(100 * done / total)
+		terminateIfError(err)
 	}
 }
 
