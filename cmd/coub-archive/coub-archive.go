@@ -33,7 +33,7 @@ func main() {
 	terminateIfError(err)
 	rootdir := filepath.Dir(exePath)
 	temproot := filepath.Dir(exePath)
-	queryId := time.Now().Format("2006-01-02T15_04_05")
+	queryId := time.Now().Format("2006-01-02T15_04_05") + strings.ReplaceAll(*whatFlag, "/", "_") + "_" + *orderByFlag
 	sh := shell.NewShell("localhost:5001")
 	var mu sync.Mutex
 	saveMetadata := func(rr TimelineRequestResponse) error {
