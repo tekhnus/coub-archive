@@ -34,8 +34,8 @@ func main() {
 	}
 	sh := shell.NewShell("localhost:5001")
 	terminateIfError(err)
-	saveMedia := func(item CoubMediaRequestResponse) error {
-		return saveMediaToIPFS(sh, item)
+	saveMedia := func(tl TimelineRequestResponse, item CoubMediaRequestResponse) error {
+		return saveMediaToIPFS(sh, queryId, tl, item)
 	}
 	err = doTimelineLikes(saveMetadata, saveMedia, updProgress)
 	terminateIfError(err)
@@ -59,7 +59,7 @@ func terminateIfError(err error) {
 	log.Fatal(err)
 }
 
-func doTimelineLikes(saveMetadata func(TimelineRequestResponse) error, saveMedia func(CoubMediaRequestResponse) error, updProgress func(int, int)) error {
+func doTimelineLikes(saveMetadata func(TimelineRequestResponse) error, saveMedia func(TimelineRequestResponse, CoubMediaRequestResponse) error, updProgress func(int, int)) error {
 	headers, err := getAuthHeaders()
 	if err != nil {
 		return err
@@ -80,8 +80,8 @@ func getAuthHeaders() (map[string]string, error) {
 	return map[string]string{"Cookie": cookie}, nil
 }
 
-func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func(CoubMediaRequestResponse) error, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
-	queue := make(chan Coub, 64000)
+func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func(TimelineRequestResponse, CoubMediaRequestResponse) error, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
+	queue := make(chan MediaRequest, 64000)
 	go func() {
 		defer close(queue)
 		err := paginateThroughTimeline(apiPath, params, headers, func(rr TimelineRequestResponse) error {
@@ -97,7 +97,7 @@ func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func
 					return err
 				}
 				updProgress(+0, +1)
-				queue <- cb
+				queue <- MediaRequest{cb, rr}
 			}
 			return nil
 		})
@@ -109,8 +109,8 @@ func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := mediaDownloader(queue, func(item CoubMediaRequestResponse) error {
-				err := saveMedia(item)
+			err := mediaDownloader(queue, func(tl TimelineRequestResponse, item CoubMediaRequestResponse) error {
+				err := saveMedia(tl, item)
 				if err != nil {
 					return err
 				}
@@ -148,22 +148,51 @@ func saveMetadataToFile(rootdir string, topic string, queryId string, data Timel
 }
 
 func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
-	dirName := filepath.Join(rootdir, "media", data.CoubPermalink)
-
-	err := saveBytesToFile(filepath.Join(dirName, "best-video", "video"+path.Ext(data.VideoRequest)), data.BestVideo)
+	dirName, err := os.MkdirTemp("", "coub-archive")
 	if err != nil {
 		return err
 	}
-	err = saveBytesToFile(filepath.Join(dirName, "best-video", "request.txt"), ([]byte)(data.VideoRequest))
+	defer os.RemoveAll(dirName)
+	err = saveMediaToStash(dirName, data)
+	if err != nil {
+		return err
+	}
+	err = os.Rename(dirName, filepath.Join(rootdir, "coubs", "media", data.CoubPermalink))
+	if err != nil {
+		os.RemoveAll(dirName)
+		return err
+	}
+	return nil
+}
+
+func saveMediaToIPFS(sh *shell.Shell, queryId string, tl TimelineRequestResponse, data CoubMediaRequestResponse) error {
+	dirName, err := os.MkdirTemp("", "coub-archive")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dirName)
+	err = saveMediaToStash(dirName, data)
+	if err != nil {
+		return err
+	}
+	return copyStashToIPFS(sh, dirName, path.Join("/coubs", queryId, "pages", fmt.Sprintf("%03d", tl.Response.Page), "coubs", data.CoubPermalink, "media"))
+}
+
+func saveMediaToStash(dirName string, data CoubMediaRequestResponse) error {
+	err := saveBytesToFile(filepath.Join(dirName, "best-video"+path.Ext(data.VideoRequest)), data.BestVideo)
+	if err != nil {
+		return err
+	}
+	err = saveBytesToFile(filepath.Join(dirName, "best-video-request.txt"), ([]byte)(data.VideoRequest))
 	if err != nil {
 		return err
 	}
 	if data.BestAudio != nil {
-		err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio"+path.Ext(data.AudioRequest)), data.BestAudio)
+		err = saveBytesToFile(filepath.Join(dirName, "best-audio"+path.Ext(data.AudioRequest)), data.BestAudio)
 		if err != nil {
 			return err
 		}
-		err = saveBytesToFile(filepath.Join(dirName, "best-audio", "request.txt"), ([]byte)(data.AudioRequest))
+		err = saveBytesToFile(filepath.Join(dirName, "best-audio-request.txt"), ([]byte)(data.AudioRequest))
 		if err != nil {
 			return err
 		}
@@ -171,39 +200,17 @@ func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
 	return nil
 }
 
-func saveMediaToIPFS(sh *shell.Shell, data CoubMediaRequestResponse) error {
-	dirName, err := os.MkdirTemp("", "coub-archive")
+func copyStashToIPFS(sh *shell.Shell, dirName string, target string) error {
+	err := ipfsFilesMkdirParents(sh, context.Background(), path.Dir(target))
 	if err != nil {
 		return err
-	}
-	defer os.RemoveAll(dirName)
-	err = saveBytesToFile(filepath.Join(dirName, "best-video", "video"+path.Ext(data.VideoRequest)), data.BestVideo)
-	if err != nil {
-		return err
-	}
-	err = saveBytesToFile(filepath.Join(dirName, "best-video", "request.txt"), ([]byte)(data.VideoRequest))
-	if err != nil {
-		return err
-	}
-	if data.BestAudio != nil {
-		err = saveBytesToFile(filepath.Join(dirName, "best-audio", "audio"+path.Ext(data.AudioRequest)), data.BestAudio)
-		if err != nil {
-			return err
-		}
-		err = saveBytesToFile(filepath.Join(dirName, "best-audio", "request.txt"), ([]byte)(data.AudioRequest))
-		if err != nil {
-			return err
-		}
 	}
 	res, err := sh.AddDir(dirName)
 	if err != nil {
 		return err
 	}
-	err = ipfsFilesMkdirParents(sh, context.Background(), "/coubs/media")
-	if err != nil {
-		return err
-	}
-	err = sh.FilesCp(context.Background(), "/ipfs/" + res, "/coubs/media/" + data.CoubPermalink)
+	defer sh.Unpin(res)
+	err = sh.FilesCp(context.Background(), path.Join("/ipfs", res), target)
 	if err != nil {
 		return err
 	}
@@ -248,13 +255,14 @@ func readCookies(curlfile string) (string, error) {
 	return cookie, nil
 }
 
-func mediaDownloader(ch chan Coub, callback func(CoubMediaRequestResponse) error) error {
-	for coub := range ch {
+func mediaDownloader(ch chan MediaRequest, callback func(TimelineRequestResponse, CoubMediaRequestResponse) error) error {
+	for mr := range ch {
+		coub := mr.Cb
 		res, err := downloadMedia(coub)
 		if err != nil {
 			return err
 		}
-		err = callback(res)
+		err = callback(mr.TimelineRequest, res)
 		if err != nil {
 			return err
 		}
@@ -426,4 +434,9 @@ type CoubMediaRequestResponse struct {
 	BestVideo     []byte
 	AudioRequest  string
 	BestAudio     []byte
+}
+
+type MediaRequest struct {
+	Cb              Coub
+	TimelineRequest TimelineRequestResponse
 }
