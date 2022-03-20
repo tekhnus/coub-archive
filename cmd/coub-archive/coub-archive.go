@@ -23,6 +23,7 @@ import (
 
 var metadataClient http.Client
 var mediaClient http.Client
+var guiErrors bool
 
 func main() {
 	noguiFlag := flag.Bool("no-gui", false, "do not use the gui, read the flags")
@@ -33,6 +34,7 @@ func main() {
 	sh := shell.NewShell("localhost:5001")
 	var updProgress func(int, int)
 	if !*noguiFlag {
+		guiErrors = true
 		err := zenity.Question("Save to IPFS?", zenity.CancelLabel("No"))
 		*ipfsFlag = err == nil
 
@@ -163,6 +165,9 @@ func guiProgressBar() func(int, int) {
 func terminateIfError(err error) {
 	if err == nil {
 		return
+	}
+	if guiErrors {
+		zenity.Error(err.Error())
 	}
 	log.Fatal(err)
 }
@@ -458,10 +463,14 @@ func performRequest(query string, headers map[string]string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("coub.com response is not good: %s", resp)
+	res, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
 	}
-	return io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("coub.com response is not good: %s %s", resp.Status, query)
+	}
+	return res, nil
 }
 
 func downloadMedia(c Coub) (CoubMediaRequestResponse, error) {
@@ -501,7 +510,7 @@ func downloadFromUrl(url string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, err
+		return nil, fmt.Errorf("error while querying the resource: %s %s", resp.Status, url)
 	}
 	return io.ReadAll(resp.Body)
 }
