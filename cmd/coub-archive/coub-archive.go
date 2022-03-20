@@ -33,13 +33,18 @@ func main() {
 	temproot := filepath.Dir(exePath)
 	queryId := time.Now().Format("2006-01-02T15_04_05")
 	sh := shell.NewShell("localhost:5001")
+	var mu sync.Mutex
 	saveMetadata := func(rr TimelineRequestResponse) error {
+		mu.Lock()
+		defer mu.Unlock()
 		if *ipfsFlag {
 			return saveMetaToIPFS(sh, temproot, queryId, rr);
 		}
 		return saveMetaToFile(rootdir, temproot, queryId, rr);
 	}
 	saveMedia := func(tl TimelineRequestResponse, item CoubMediaRequestResponse) error {
+		mu.Lock()
+		defer mu.Unlock()
 		if *ipfsFlag {
 			return saveMediaToIPFS(sh, temproot, queryId, tl, item);
 		}
@@ -134,7 +139,7 @@ func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func
 }
 
 func saveMetaToFile(rootdir string, temproot string, queryId string, data TimelineRequestResponse) error {
-	dirName, err := os.MkdirTemp(temproot, "coub-archive")
+	dirName, err := os.MkdirTemp(temproot, "coub-archive-temporary-")
 	if err != nil {
 		return err
 	}
@@ -152,7 +157,7 @@ func saveMetaToFile(rootdir string, temproot string, queryId string, data Timeli
 }
 
 func saveMetaToIPFS(sh *shell.Shell, temproot string, queryId string, data TimelineRequestResponse) error {
-	dirName, err := os.MkdirTemp(temproot, "coub-archive")
+	dirName, err := os.MkdirTemp(temproot, "coub-archive-temporary-")
 	if err != nil {
 		return err
 	}
@@ -186,7 +191,7 @@ func saveMetaToStash(dirName string, data TimelineRequestResponse) error {
 }
 
 func saveMediaToFile(rootdir string, temproot string, queryId string, tl TimelineRequestResponse, data CoubMediaRequestResponse) error {
-	dirName, err := os.MkdirTemp(temproot, "coub-archive")
+	dirName, err := os.MkdirTemp(temproot, "coub-archive-temporary-")
 	if err != nil {
 		return err
 	}
@@ -204,7 +209,7 @@ func saveMediaToFile(rootdir string, temproot string, queryId string, tl Timelin
 }
 
 func saveMediaToIPFS(sh *shell.Shell, temproot string, queryId string, tl TimelineRequestResponse, data CoubMediaRequestResponse) error {
-	dirName, err := os.MkdirTemp(temproot, "coub-archive")
+	dirName, err := os.MkdirTemp(temproot, "coub-archive-temporary-")
 	if err != nil {
 		return err
 	}
