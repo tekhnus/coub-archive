@@ -509,20 +509,33 @@ func downloadResource(res CoubHTML5Resource) (string, []byte, error) {
 }
 
 func downloadFromUrl(url string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	req.Close = true
-	if err != nil {
-		return nil, err
+	var err error
+	for i := 1; i < 3; i++ {
+		if i > 1 {
+			time.Sleep(60 * time.Second)
+		}
+		var req *http.Request
+		req, err = http.NewRequest("GET", url, nil)
+		req.Close = true
+		if err != nil {
+			continue
+		}
+		resp, err := mediaClient.Do(req)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			err = fmt.Errorf("error while querying the resource: %s %s", resp.Status, url)
+			continue
+		}
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			continue
+		}
+		return b, nil
 	}
-	resp, err := mediaClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error while querying the resource: %s %s", resp.Status, url)
-	}
-	return io.ReadAll(resp.Body)
+	return nil, err
 }
 
 func saveBytesToFile(path string, b []byte) error {
