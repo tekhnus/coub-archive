@@ -24,7 +24,9 @@ var metadataClient http.Client
 var mediaClient http.Client
 
 func main() {
+	whatFlag := flag.String("what", "/timeline/likes", "api endpoint")
 	ipfsFlag := flag.Bool("ipfs", false, "upload to ipfs")
+	orderByFlag := flag.String("order-by", "", "field to order by")
 	flag.Parse()
 	updProgress := progressBar()
 	exePath, err := os.Executable()
@@ -50,7 +52,7 @@ func main() {
 		}
 		return saveMediaToFile(rootdir, temproot, queryId, tl, item)
 	}
-	err = doTimelineLikes(saveMetadata, saveMedia, updProgress)
+	err = doTimeline(saveMetadata, saveMedia, updProgress, *whatFlag, *orderByFlag)
 	terminateIfError(err)
 }
 
@@ -72,12 +74,22 @@ func terminateIfError(err error) {
 	log.Fatal(err)
 }
 
-func doTimelineLikes(saveMetadata func(TimelineRequestResponse) error, saveMedia func(TimelineRequestResponse, CoubMediaRequestResponse) error, updProgress func(int, int)) error {
-	headers, err := getAuthHeaders()
-	if err != nil {
-		return err
+func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func(TimelineRequestResponse, CoubMediaRequestResponse) error, updProgress func(int, int), apiPath string, order_by string) error {
+	var headers map[string]string
+	if apiPath == "/timeline/likes" || apiPath == "/timeline" {
+		var err error
+		headers, err = getAuthHeaders()
+		if err != nil {
+			return err
+		}
 	}
-	return doTimeline(saveMetadata, saveMedia, "/timeline/likes", []string{}, headers, updProgress)
+
+	var params []string
+	if order_by != "" {
+		params = append(params, "order_by=" + order_by)
+	}
+
+	return doTimelineImpl(saveMetadata, saveMedia, apiPath, params, headers, updProgress)
 }
 
 func getAuthHeaders() (map[string]string, error) {
@@ -93,7 +105,7 @@ func getAuthHeaders() (map[string]string, error) {
 	return map[string]string{"Cookie": cookie}, nil
 }
 
-func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func(TimelineRequestResponse, CoubMediaRequestResponse) error, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
+func doTimelineImpl(saveMetadata func(TimelineRequestResponse) error, saveMedia func(TimelineRequestResponse, CoubMediaRequestResponse) error, apiPath string, params []string, headers map[string]string, updProgress func(int, int)) error {
 	queue := make(chan MediaRequest, 64000)
 	go func() {
 		defer close(queue)
