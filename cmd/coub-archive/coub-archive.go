@@ -24,19 +24,19 @@ var mediaClient http.Client
 
 func main() {
 	updProgress := progressBar()
-	// exePath, err := os.Executable()
-	// terminateIfError(err)
-	// dirTag := "coubs"
-	// dirName := filepath.Join(filepath.Dir(exePath), dirTag)
+	exePath, err := os.Executable()
+	terminateIfError(err)
+	rootdir := filepath.Dir(exePath)
+	temproot := filepath.Dir(exePath)
 	queryId := time.Now().Format("2006-01-02T15_04_05")
-	sh := shell.NewShell("localhost:5001")
+	// sh := shell.NewShell("localhost:5001")
 	saveMetadata := func(rr TimelineRequestResponse) error {
-		return saveMetaToIPFS(sh, queryId, rr);
+		return saveMetaToFile(rootdir, temproot, queryId, rr);
 	}
 	saveMedia := func(tl TimelineRequestResponse, item CoubMediaRequestResponse) error {
-		return saveMediaToIPFS(sh, queryId, tl, item)
+		return saveMediaToFile(rootdir, temproot, queryId, tl, item)
 	}
-	err := doTimelineLikes(saveMetadata, saveMedia, updProgress)
+	err = doTimelineLikes(saveMetadata, saveMedia, updProgress)
 	terminateIfError(err)
 }
 
@@ -124,30 +124,26 @@ func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func
 	return nil
 }
 
-func saveMetadataToFile(rootdir string, topic string, queryId string, data TimelineRequestResponse) error {
-	pageRoot := filepath.Join(rootdir, topic, queryId, fmt.Sprintf("%03d", data.Response.Page))
-	saveBytesToFile(filepath.Join(pageRoot, "request.txt"), ([]byte)(data.Request))
-	page := data.Response
-	for _, rawcb := range page.Coubs {
-		var cb Coub
-		err := json.Unmarshal(rawcb, &cb)
-		if err != nil {
-			return err
-		}
-		b, err := json.Marshal(rawcb)
-		if err != nil {
-			return err
-		}
-		err = saveBytesToFile(filepath.Join(pageRoot, "coubs", cb.Permalink, "metadata.txt"), b)
-		if err != nil {
-			return err
-		}
+func saveMetaToFile(rootdir string, temproot string, queryId string, data TimelineRequestResponse) error {
+	dirName, err := os.MkdirTemp(temproot, "coub-archive")
+	if err != nil {
+		return err
 	}
-	return nil
+	defer os.RemoveAll(dirName)
+	err = saveMetaToStash(dirName, data)
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(rootdir, "coubs", queryId, "pages", fmt.Sprintf("%03d", data.Response.Page))
+	err = os.MkdirAll(filepath.Dir(target), 0775)
+	if err != nil {
+		return err
+	}
+	return os.Rename(dirName, target)
 }
 
-func saveMetaToIPFS(sh *shell.Shell, queryId string, data TimelineRequestResponse) error {
-	dirName, err := os.MkdirTemp("", "coub-archive")
+func saveMetaToIPFS(sh *shell.Shell, temproot string, queryId string, data TimelineRequestResponse) error {
+	dirName, err := os.MkdirTemp(temproot, "coub-archive")
 	if err != nil {
 		return err
 	}
@@ -180,8 +176,8 @@ func saveMetaToStash(dirName string, data TimelineRequestResponse) error {
 	return nil
 }
 
-func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
-	dirName, err := os.MkdirTemp("", "coub-archive")
+func saveMediaToFile(rootdir string, temproot string, queryId string, tl TimelineRequestResponse, data CoubMediaRequestResponse) error {
+	dirName, err := os.MkdirTemp(temproot, "coub-archive")
 	if err != nil {
 		return err
 	}
@@ -190,16 +186,16 @@ func saveMediaToFile(rootdir string, data CoubMediaRequestResponse) error {
 	if err != nil {
 		return err
 	}
-	err = os.Rename(dirName, filepath.Join(rootdir, "coubs", "media", data.CoubPermalink))
+	target := filepath.Join(rootdir, "coubs", queryId, "pages", fmt.Sprintf("%03d", tl.Response.Page), "coubs", data.CoubPermalink, "media")
+	err = os.MkdirAll(filepath.Dir(target), 0775)
 	if err != nil {
-		os.RemoveAll(dirName)
 		return err
 	}
-	return nil
+	return os.Rename(dirName, target)
 }
 
-func saveMediaToIPFS(sh *shell.Shell, queryId string, tl TimelineRequestResponse, data CoubMediaRequestResponse) error {
-	dirName, err := os.MkdirTemp("", "coub-archive")
+func saveMediaToIPFS(sh *shell.Shell, temproot string, queryId string, tl TimelineRequestResponse, data CoubMediaRequestResponse) error {
+	dirName, err := os.MkdirTemp(temproot, "coub-archive")
 	if err != nil {
 		return err
 	}
