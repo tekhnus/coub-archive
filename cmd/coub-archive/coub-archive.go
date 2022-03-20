@@ -18,16 +18,87 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/ncruces/zenity"
 )
 
 var metadataClient http.Client
 var mediaClient http.Client
 
 func main() {
+	noguiFlag := flag.Bool("no-gui", false, "do not use the gui, read the flags")
 	whatFlag := flag.String("what", "/timeline/likes", "api endpoint")
 	ipfsFlag := flag.Bool("ipfs", false, "upload to ipfs")
 	orderByFlag := flag.String("order-by", "", "field to order by")
 	flag.Parse()
+	if !*noguiFlag {
+		err := zenity.Question("Save to IPFS?", zenity.CancelLabel("No"))
+		*ipfsFlag = err == nil
+
+		apiPaths := map[string]string{
+			"my-likes": "/timeline/likes",
+			"my-feed": "/timeline",
+			"channel": "/timeline/channel",
+			"tag": "/timeline/tag",
+			"hot": "/timeline/hot",
+			"coub-of-the-day": "/timeline/explore/coub_of_the_day",
+		}
+		var ks []string
+		for k := range apiPaths {
+			ks = append(ks, k)
+		}
+		res, err := zenity.List(
+			"choose what to download",
+			ks,
+			zenity.DefaultItems("my-likes"),
+			zenity.DisallowEmpty(),
+		)
+		terminateIfError(err)
+		if res == "" {
+			res = "my-likes"
+		}
+		var ok bool
+		*whatFlag, ok = apiPaths[res]
+		if !ok {
+			terminateIfError(fmt.Errorf("something wrong with the dialog"))
+		}
+
+		var orderOptions []string
+		if *whatFlag == "/timeline/channel" {
+			orderOptions = []string{"default", "likes_count", "views_count", "newest_popular"}
+		} else if *whatFlag == "/timeline/tag" {
+			orderOptions = []string{"default", "likes_count", "views_count", "newest_popular", "oldest"}
+		} else if *whatFlag == "/timeline/hot" {
+			orderOptions = []string{"default", "likes_count", "views_count", "newest_popular", "oldest"}
+		}
+
+		var clarify string
+		if *whatFlag == "/timeline/channel" {
+			clarify = "Enter channel name (from its URL):"
+		} else if *whatFlag == "/timeline/tag" {
+			clarify = "Enter tag name without the '#':"
+		}
+		if clarify != "" {
+			res, err := zenity.Entry(clarify)
+			terminateIfError(err)
+			*whatFlag += "/" + res
+		}
+
+		if len(orderOptions) != 0 {
+			res, err := zenity.List(
+				"choose the order",
+				orderOptions,
+				zenity.DefaultItems("default"),
+				zenity.DisallowEmpty(),
+			)
+			terminateIfError(err)
+			if res == "" {
+				res = "default"
+			}
+			if res != "default" {
+				*orderByFlag = res
+			}
+		}
+	}
 	updProgress := progressBar()
 	exePath, err := os.Executable()
 	terminateIfError(err)
