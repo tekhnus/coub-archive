@@ -36,7 +36,7 @@ func main() {
 	var success func()
 	if !*noguiFlag {
 		guiErrors = true
-		err := zenity.Question("Save to IPFS?", zenity.CancelLabel("No"))
+		err := zenity.Question("Save to IPFS?", zenity.CancelLabel("No"), zenity.Title("Choose the destination"))
 		*ipfsFlag = err == nil
 
 		if *ipfsFlag && !sh.IsUp() {
@@ -59,6 +59,7 @@ func main() {
 			ks,
 			zenity.DefaultItems("my-likes"),
 			zenity.DisallowEmpty(),
+			zenity.Title("Choose what to download"),
 		)
 		terminateIfError(err)
 		if res == "" {
@@ -86,7 +87,7 @@ func main() {
 			clarify = "Enter tag name without the '#':"
 		}
 		if clarify != "" {
-			res, err := zenity.Entry(clarify)
+			res, err := zenity.Entry(clarify, zenity.Title("input"))
 			terminateIfError(err)
 			*whatFlag += "/" + res
 		}
@@ -97,6 +98,7 @@ func main() {
 				orderOptions,
 				zenity.DefaultItems("default"),
 				zenity.DisallowEmpty(),
+				zenity.Title("download order"),
 			)
 			terminateIfError(err)
 			if res == "" {
@@ -169,7 +171,7 @@ func guiProgressBar() func(int, int) {
 }
 
 func guiSuccess() {
-	zenity.Info("success!")
+	zenity.Info("success!", zenity.Title("yay!"))
 }
 
 func terminateIfError(err error) {
@@ -177,7 +179,7 @@ func terminateIfError(err error) {
 		return
 	}
 	if guiErrors {
-		zenity.Error(err.Error())
+		zenity.Error(err.Error(), zenity.Title("error"))
 	}
 	log.Fatal(err)
 }
