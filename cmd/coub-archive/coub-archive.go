@@ -116,10 +116,12 @@ func main() {
 			fmt.Println("\nsuccess!")
 		}
 	}
-	exePath, err := os.Executable()
+	rootdir, err := os.UserHomeDir()
 	terminateIfError(err)
-	rootdir := filepath.Dir(exePath)
-	temproot := filepath.Dir(exePath)
+	temproot := filepath.Join(rootdir, "coubs-temporary-folder")
+	err = os.MkdirAll(temproot, 0775)
+	terminateIfError(err)
+	defer os.RemoveAll(temproot)
 	queryId := time.Now().Format("2006-01-02T15_04_05") + strings.ReplaceAll(*whatFlag, "/", "_") + "_" + *orderByFlag
 	var mu sync.Mutex
 	saveMetadata := func(rr TimelineRequestResponse) error {
@@ -203,11 +205,11 @@ func doTimeline(saveMetadata func(TimelineRequestResponse) error, saveMedia func
 }
 
 func getAuthHeaders() (map[string]string, error) {
-	exePath, err := os.Executable()
+	exePath, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
-	curlfile := filepath.Join(filepath.Dir(exePath), "coub-curl.txt")
+	curlfile := filepath.Join(exePath, "coub-curl.txt")
 	cookie, err := readCookies(curlfile)
 	if err != nil {
 		return nil, err
