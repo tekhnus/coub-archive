@@ -19,7 +19,9 @@ jobs:
           GOPROXY: "https://proxy.golang.org"
         run: |
           FLAGS=''
-          [ "${{ matrix.goos }}" = "windows" ] && FLAGS='-ldflags -H=windowsgui'
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            FLAGS='-ldflags -H=windowsgui'
+          fi
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build $FLAGS ./cmd/coub-archive
-      - run: |
-          [ "${{ matrix.goos }}" = "darwin" ] && ./build/package/package.sh
+      - if: ${{ matrix.goos }} == "darwin"
+        run: ./build/package/package.sh
