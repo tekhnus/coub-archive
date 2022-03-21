@@ -22,6 +22,8 @@
 
 Внимание: в `coub-curl.txt` находится авторизационная информация, необходимая для скачивания. Не показывайте её никому.
 
+Коубы будут сохраняться в папку `coubs` в домашней директории.
+
 === english version
 
 This is a coub downloader. It can download coubs:
@@ -48,3 +50,4 @@ The coubs are (optionally) shared via IPFS, so that you can later share them wit
 
 Warning: `coub-curl.txt` file contains your authentication cookies, which are neeeded for downloading. Do not share its content with other people!
 
+The coubs will be saved in `coubs` folder in your home directory.

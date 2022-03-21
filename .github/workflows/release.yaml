@@ -18,7 +18,7 @@ jobs:
           release_name: ${{ github.ref_name }}
           body: |
             Release ${{ github.ref_name }}
-          draft: true
+          draft: false
           prerelease: false
   build:
     needs: create_release
