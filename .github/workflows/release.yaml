@@ -52,12 +52,13 @@ jobs:
             ./build/package/package.sh
             zip coub-archive.zip coub-archive.app
             echo ::set-output name=filename::coub-archive.zip
-            # application/zip
+            echo ::set-output name=content_type::application/zip
           elif [ "${{ matrix.goos }}" = "windows" ]; then
             echo ::set-output name=filename::coub-archive.exe
-            # application/vnd.microsoft.portable-executable
+            echo ::set-output name=content_type::application/vnd.microsoft.portable-executable
           elif [ "${{ matrix.goos }}" = "linux" ]; then
             echo ::set-output name=filename::coub-archive
+            echo ::set-output name=content_type::application/x-executable
           fi
      
       - uses: actions/upload-release-asset@v1
@@ -67,3 +68,4 @@ jobs:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ${{ steps.package.outputs.filename }}
           asset_name: ${{ steps.package.outputs.filename }}
+          asset_content_type: ${{ steps.package.outputs.content_type }}
