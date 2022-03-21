@@ -12,13 +12,13 @@
 
 ==== Инструкция
 
-1. Заходим на [страницу с релизами](https://github.com/tekhnus/coub-archive/releases); находим по названию подходящую версию для своего компьютера ("darwin" значит Mac, "arm64" значит процессор M1, "amd64" значит процессор Intel или AMD); скачиваем; **распаковываем** исполняемый файл из архива.
+1. Заходим на [страницу с релизами](https://github.com/tekhnus/coub-archive/releases); находим по названию подходящую версию для своего компьютера ("darwin" значит Mac, "arm64" значит процессор M1, "amd64" значит процессор Intel или AMD); скачиваем; распаковываем программу из архива.
 
 *Следующие шаги необходимы только если нужно скачивать лайкнутые коубы или коубы из ленты.*
 
 2. Открываем браузер, заходим на coub.com, заходим в свой аккаунт.
 3. Пользуясь консолью разработчика, копируем команду cURL для домена `coub.com`. Как это сделать, читай здесь: https://everything.curl.dev/usingcurl/copyas
-4. Создаём в той же папке, где находится программа `coub-archive`, файл с названием `coub-curl.txt` и сохраняем скопированный текст в него.
+4. Создаём непосредственно в своей домашней папке файл с названием `coub-curl.txt` и сохраняем скопированный текст в него.
 
 Внимание: в `coub-curl.txt` находится авторизационная информация, необходимая для скачивания. Не показывайте её никому.
 
@@ -42,7 +42,7 @@ The coubs are (optionally) shared via IPFS, so that you can later share them wit
 
 2. Open your browser, navigate to `coub.com`, log into your account.
 3. Copy the cURL command for the `coub.com` domain. To do it follow the instructions here: https://everything.curl.dev/usingcurl/copyas
-4. Create a file named `coub-curl.txt` in the same directory where you placed the `coub-archive` program and save the copied text into it.
+4. Create a file named `coub-curl.txt` right in your home directory and save the copied text into it.
 
 
 
