@@ -50,7 +50,7 @@ jobs:
           set -e
           if [ "${{ matrix.goos }}" = "darwin" ]; then
             ./build/package/package.sh
-            zip coub-archive.zip coub-archive.app
+            zip -r coub-archive.zip coub-archive.app
             echo ::set-output name=filename::coub-archive.zip
             echo ::set-output name=content_type::application/zip
           elif [ "${{ matrix.goos }}" = "windows" ]; then
