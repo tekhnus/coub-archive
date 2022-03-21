@@ -21,7 +21,7 @@ jobs:
           draft: true
           prerelease: false
   build:
-    needs: create-release
+    needs: create_release
     name: Build
     runs-on: ubuntu-latest
     strategy:
