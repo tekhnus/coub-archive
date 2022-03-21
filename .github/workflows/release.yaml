@@ -15,9 +15,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
+          release_name: ${{ github.ref_name }}
           body: |
-            Release ${{ github.ref }}
+            Release ${{ github.ref_name }}
           draft: true
           prerelease: false
   build:
@@ -66,5 +66,5 @@ jobs:
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ${{ steps.package.outputs.filename }}
-          asset_name: ${{ steps.package.outputs.filename }}-{{ matrix.goos }}-{{ matrix.goarach }}
+          asset_name: ${{ matrix.goos }}-${{ matrix.goarach }}-${{ github.ref_name }}-${{ steps.package.outputs.filename }}
           asset_content_type: ${{ steps.package.outputs.content_type }}
