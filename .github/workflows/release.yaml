@@ -15,6 +15,11 @@ jobs:
         with:
           go-version: 1.16
       - uses: actions/checkout@v1
+      - run: |
+          FLAGS=
+          [ "${{ matrix.goos }}" = "windows" ] && FLAGS='-ldflags -H=windowsgui'
       - env:
           GOPROXY: "https://proxy.golang.org"
-        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build ./cmd/coub-archive
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build $FLAGS ./cmd/coub-archive
+      - run: |
+          [ "${{ matrix.goos }}" = "darwin" ] && ./build/package/package.sh
