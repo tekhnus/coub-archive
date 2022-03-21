@@ -1,4 +1,7 @@
-on: [push]
+on:
+  push:
+    tags:
+      - 'v*'
 jobs:
   release:
     name: Release
@@ -18,10 +21,38 @@ jobs:
       - env:
           GOPROXY: "https://proxy.golang.org"
         run: |
+          set -e
           FLAGS=''
           if [ "${{ matrix.goos }}" = "windows" ]; then
             FLAGS='-ldflags -H=windowsgui'
           fi
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build $FLAGS ./cmd/coub-archive
-      - if: ${{ matrix.goos }} == "darwin"
-        run: ./build/package/package.sh
+      - id: package
+        run: |
+          set -e
+          if [ "${{ matrix.goos }}" = "darwin" ]; then
+            ./build/package/package.sh
+            zip coub-archive.zip coub-archive.app
+            echo ::set-output name=filename::coub-archive.zip
+          elif [ "${{ matrix.goos }}" = "windows" ]; then
+            echo ::set-output name=filename::coub-archive.exe
+          elif [ "${{ matrix.goos }}" = "linux" ]; then
+            echo ::set-output name=filename::coub-archive
+          fi
+      - id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: |
+            Release ${{ github.ref }}
+          draft: true
+          prerelease: false
+      - uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.package.outputs.name }}
