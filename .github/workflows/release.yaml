@@ -52,10 +52,10 @@ jobs:
             ./build/package/package.sh
             zip coub-archive.zip coub-archive.app
             echo ::set-output name=filename::coub-archive.zip
-            application/zip
+            # application/zip
           elif [ "${{ matrix.goos }}" = "windows" ]; then
             echo ::set-output name=filename::coub-archive.exe
-            application/vnd.microsoft.portable-executable
+            # application/vnd.microsoft.portable-executable
           elif [ "${{ matrix.goos }}" = "linux" ]; then
             echo ::set-output name=filename::coub-archive
           fi
