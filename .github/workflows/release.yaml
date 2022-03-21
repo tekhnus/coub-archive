@@ -3,8 +3,26 @@ on:
     tags:
       - 'v*'
 jobs:
-  release:
-    name: Release
+  create_release:
+    name: Create release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: |
+            Release ${{ github.ref }}
+          draft: true
+          prerelease: false
+  build:
+    needs: create-release
+    name: Build
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -39,20 +57,10 @@ jobs:
           elif [ "${{ matrix.goos }}" = "linux" ]; then
             echo ::set-output name=filename::coub-archive
           fi
-      - id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          body: |
-            Release ${{ github.ref }}
-          draft: true
-          prerelease: false
+     
       - uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.package.outputs.name }}
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.package.outputs.filename }}
