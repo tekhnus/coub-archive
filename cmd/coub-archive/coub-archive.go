@@ -159,7 +159,7 @@ func progressBar() func(int, int) {
 func guiProgressBar() func(int, int) {
 	dlg, err := zenity.Progress()
 	terminateIfError(err)
-	dlg.Text("downloading...")
+	dlg.Text("starting downloading...")
 
 	done := 0
 	total := 0
@@ -168,6 +168,8 @@ func guiProgressBar() func(int, int) {
 		done += deltaDone
 		total += deltaTotal
 		err := dlg.Value(100 * done / total)
+		terminateIfError(err)
+		err = dlg.Text(fmt.Sprintf("%d from %d coubs downloaded", done, total))
 		terminateIfError(err)
 	}
 }
