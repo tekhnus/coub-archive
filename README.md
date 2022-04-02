@@ -22,7 +22,7 @@
 
 Внимание: в `coub-curl.txt` находится авторизационная информация, необходимая для скачивания. Не показывайте её никому.
 
-Коубы будут сохраняться в папку `coubs` в домашней директории.
+Коубы будут сохраняться в папку `coubs` в домашней директории (либо, опционально, в IPFS-хранилище; для этого на компьютере должна быть запущена IPFS-нода).
 
 === english version
 
@@ -50,4 +50,4 @@ The coubs are (optionally) shared via IPFS, so that you can later share them wit
 
 Warning: `coub-curl.txt` file contains your authentication cookies, which are neeeded for downloading. Do not share its content with other people!
 
-The coubs will be saved in `coubs` folder in your home directory.
+The coubs will be saved in `coubs` folder in your home directory (or into IPFS storage; in this case, an IPFS node should be running on your computer).
